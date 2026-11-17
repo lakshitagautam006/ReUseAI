@@ -1,0 +1,7 @@
+# ReUseAI - Core Dependencies (Lightweight & Modular)
+streamlit>=1.35.0
+pillow>=10.2.0
+python-dotenv>=1.0.0
+
+# Vision-capable AI API (Official Groq Python SDK)
+groq>=0.9.0
