@@ -9,6 +9,7 @@ from PIL import Image
 import base64
 import json
 from datetime import datetime
+from src.database.repository import save_analysis, get_all_analyses, get_analysis_by_id
 
 from src.config import (
     GROQ_API_KEY,
@@ -797,7 +798,7 @@ st.markdown(
 # -----------------------------------------------------------------------------
 # Navigation State & Programmatic Routing
 # -----------------------------------------------------------------------------
-NAV_PAGES = ["Home", "Analyze Waste", "Analysis Results", "Impact Dashboard", "About"]
+NAV_PAGES = ["Home","Analyze Waste","Analysis Results","Analysis History","Impact Dashboard","About"]
 
 # Handle safe programmatic navigation before widgets render
 if "pending_page" in st.session_state and st.session_state["pending_page"]:
@@ -1227,12 +1228,32 @@ elif current_page == "Analyze Waste":
                     image_to_analyze,
                     progress_callback=on_progress,
                 )
+                
                 st.session_state["analysis_result"] = result
+
+                # Save analysis to PostgreSQL
+                try:
+                    analysis_id = save_analysis(result)
+                    st.session_state["saved_analysis_id"] = analysis_id
+                    st.session_state["database_save_status"] = {
+                        "success": True,
+                        "analysis_id": analysis_id,
+                        "message": f"Analysis saved successfully! ID: {analysis_id}",
+                    }
+
+                except Exception as db_error:
+                    st.session_state["database_save_status"] = {
+                        "success": False,
+                        "analysis_id": None,
+                        "message": f"Database saving failed: {db_error}",
+                    }
+
                 status_container.update(
-                    label="✅ Analysis completed successfully!",
+                    label="Analysis completed successfully!",
                     state="complete",
                     expanded=False,
                 )
+
                 navigate_to("Analysis Results")
             except Exception as err:
                 status_container.update(
@@ -1266,6 +1287,14 @@ elif current_page == "Analysis Results":
         """,
         unsafe_allow_html=True,
     )
+    # Database save status
+    db_status = st.session_state.get("database_save_status")
+
+    if db_status:
+        if db_status["success"]:
+            st.success(f"💾 {db_status['message']}")
+        else:
+            st.warning(f"⚠️ {db_status['message']}")
 
     result = st.session_state.get("analysis_result")
 
@@ -1649,6 +1678,308 @@ elif current_page == "Analysis Results":
 
 
 # -----------------------------------------------------------------------------
+# PAGE 4: Analysis History
+# -----------------------------------------------------------------------------
+elif current_page == "Analysis History":
+
+    st.markdown(
+        """
+        <div class="page-header">
+            <div class="page-title">📂 Analysis History</div>
+            <div class="page-subtitle">
+                Browse previously analyzed waste materials and revisit their results.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    try:
+        analyses = get_all_analyses(limit=50)
+
+        if not analyses:
+            st.info("No saved analyses found. Analyze some waste materials to build your history!")
+        else:
+            st.success(f"Total saved analyses retrieved: {len(analyses)}")
+
+            # Prepare history table
+            st.markdown("### 🔎 Search & Filter Analyses")
+
+            search_query = st.text_input(
+                "Search by material name",
+                placeholder="e.g., Plastic, Glass, Metal...",
+            )
+
+            categories = sorted(set(
+                item["primary_category"]
+                for item in analyses
+                if item["primary_category"]
+            ))
+
+            conditions = sorted(set(
+                item["physical_condition"]
+                for item in analyses
+                if item["physical_condition"]
+            ))
+
+            filter_col1, filter_col2 = st.columns(2)
+
+            with filter_col1:
+                selected_category = st.selectbox(
+                    "Filter by Category",
+                    ["All Categories"] + categories,
+                )
+
+            with filter_col2:
+                selected_condition = st.selectbox(
+                    "Filter by Condition",
+                    ["All Conditions"] + conditions,
+                )
+
+            # Apply filters
+            filtered_analyses = analyses
+
+            if search_query:
+                filtered_analyses = [
+                    item for item in filtered_analyses
+                    if search_query.lower() in str(item["material_type"]).lower()
+                ]
+
+            if selected_category != "All Categories":
+                filtered_analyses = [
+                    item for item in filtered_analyses
+                    if item["primary_category"] == selected_category
+                ]
+
+            if selected_condition != "All Conditions":
+                filtered_analyses = [
+                    item for item in filtered_analyses
+                    if item["physical_condition"] == selected_condition
+                ]
+
+            st.caption(
+                f"Showing {len(filtered_analyses)} of {len(analyses)} analyses"
+            )
+
+            # Prepare filtered history table
+            history_table = []
+
+            for item in filtered_analyses:
+                created_at = item["created_at"]
+
+                history_table.append({
+                    "Analysis ID": item["id"],
+                    "Material": item["material_type"],
+                    "Category": item["primary_category"],
+                    "Condition": item["physical_condition"],
+                    "Confidence": (
+                        f'{item["confidence_score"]:.1%}'
+                        if item["confidence_score"] is not None
+                        else "N/A"
+                    ),
+                    "Date": created_at.strftime("%d %b %Y, %I:%M %p")
+                    if created_at
+                    else "N/A",
+                })
+
+            st.markdown("### 🗃️ Saved Analyses")
+
+            if filtered_analyses:
+                st.dataframe(
+                    history_table,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.info("No analyses match your search or selected filters.")
+
+            st.markdown("---")
+            st.markdown("### 🔍 View Previous Analysis")
+
+            analysis_ids = [item["id"] for item in analyses]
+
+            selected_id = st.selectbox(
+                "Select an Analysis ID",
+                options=analysis_ids,
+            )
+
+            if st.button("View Analysis Details", use_container_width=True):
+                st.session_state["history_selected_id"] = selected_id
+
+            if "history_selected_id" in st.session_state:
+                selected_history_id = st.session_state["history_selected_id"]
+
+                if selected_history_id in analysis_ids:
+                    saved_result = get_analysis_by_id(selected_history_id)
+
+                    if saved_result:
+                        material = saved_result.get("material", {})
+                        st.markdown(f"## ♻️ Analysis Report #{selected_history_id}")
+
+                        #Overview
+                        st.markdown("### Material Overview")
+
+                        st.markdown(f"**Material:** {material.get('material_type', 'Unknown')}")
+                        st.markdown(f"**Category:** {material.get('primary_category', 'N/A')}")
+                        st.markdown(f"**Sub-category:** {material.get('sub_category', 'N/A')}")
+
+                        summary = saved_result.get("summary")
+                        if summary:
+                            st.info(summary)
+
+                        # Key metrics
+                        confidence = material.get("confidence_score", saved_result.get("confidence"))
+                        recyclability = material.get("recyclability_score")
+
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            if isinstance(confidence, (int, float)):
+                                confidence_display = (
+                                    f"{confidence:.1%}" if confidence <= 1 else f"{confidence:.1f}%"
+                                )
+                            else:
+                                confidence_display = str(confidence or "N/A")
+
+                            st.metric("AI Confidence", confidence_display)
+
+                        with col2:
+                            st.metric(
+                                "Recyclability Score",
+                                recyclability if recyclability is not None else "N/A"
+                            )
+
+                        with col3:
+                            st.metric(
+                                "Physical Condition",
+                                material.get("physical_condition", saved_result.get("condition", "N/A"))
+                            )
+
+                        st.markdown("---")
+
+                        # Material details
+                        st.markdown("### 🔬 Material Details")
+
+                        details_col1, details_col2 = st.columns(2)
+
+                        with details_col1:
+                            st.write("**Cleanliness Level**")
+                            st.write(material.get("cleanliness_level", "N/A"))
+
+                            st.write("**Waste Type**")
+                            st.write(saved_result.get("waste_type", "N/A"))
+
+                        with details_col2:
+                            st.write("**Recyclable**")
+                            st.write(saved_result.get("recyclable", "N/A"))
+
+                            st.write("**Detected Features**")
+                            st.write(material.get("detected_features", "N/A"))
+
+                        hazardous = material.get("hazardous_elements")
+                        if hazardous:
+                            st.warning("⚠️ Hazardous Elements")
+                            st.write(hazardous)
+
+                        st.markdown("---")
+
+                        # Reuse suggestions
+                        st.markdown("### 💡 Reuse Suggestions")
+
+                        suggestions = saved_result.get("reuse_suggestions", [])
+
+                        if suggestions:
+                            for i, suggestion in enumerate(suggestions, start=1):
+
+                                with st.container(border=True):
+                                    st.markdown(f"### 💡 {suggestion.get('title', f'Suggestion                         {i}')}")
+                                    st.caption(suggestion.get("category", "Reuse Idea"))
+
+                                    col1, col2, col3 = st.columns(3)
+
+                                    with col1:
+                                        st.metric("Difficulty", suggestion.get("difficulty", "N/A"))
+
+                                    with col2:
+                                        st.metric("Estimated Time", suggestion.get("estimated_time", "N/A"))
+
+                                    with col3:
+                                        st.metric("Carbon Offset", suggestion.get("carbon_offset_rating", "N/A"))
+
+                                    st.markdown("**🌱 Environmental Benefit**")
+                                    st.write(suggestion.get("environmental_benefit", "N/A"))
+
+                                    tools = suggestion.get("tools_required", [])
+                                    if tools:
+                                        st.markdown("**🧰 Tools Required**")
+                                        for tool in tools:
+                                            st.markdown(f"- {tool}")
+
+                                    steps = suggestion.get("step_by_step_guide", [])
+                                    if steps:
+                                        st.markdown("**📝 Step-by-Step Guide**")
+                                        for step_no, step in enumerate(steps, start=1):
+                                            st.markdown(f"**{step_no}.** {step}")
+                        else:
+                            st.info("No reuse suggestions were saved for this analysis.")
+
+                        # Matched opportunities
+                        st.markdown("---")
+                        st.markdown("### 🏭 Matched Opportunities")
+
+                        opportunities = saved_result.get("matched_opportunities", [])
+
+                        if opportunities:
+                            for i, opportunity in enumerate(opportunities, start=1):
+
+                                with st.container(border=True):
+                                    st.markdown(
+                                        f"### 🏭 {opportunity.get('opportunity_name', f'Opportunity {i}')}"
+                                    )
+
+                                    st.caption(opportunity.get("opportunity_category", "Industry Opportunity"))
+
+                                    score = opportunity.get("match_score")
+
+                                    if isinstance(score, (int, float)):
+                                        st.progress(min(max(score / 100, 0.0), 1.0))
+                                        st.metric("Material Match Score", f"{score:.1f}%")
+                                    else:
+                                        st.metric("Material Match Score", "N/A")
+
+                                    st.markdown("**👥 Target Users**")
+                                    st.write(opportunity.get("target_user", "N/A"))
+
+                                    st.markdown("**🔧 Suggested Application**")
+                                    st.write(opportunity.get("suggested_application", "N/A"))
+
+                                    st.markdown("**🧠 Why This Match?**")
+                                    st.write(opportunity.get("reason", "N/A"))
+                        else:
+                            st.info("No matched opportunities were saved.")
+
+                        # Handling instructions
+                        st.markdown("---")
+                        st.markdown("### 🛡️ Handling Instructions")
+
+                        handling = saved_result.get("handling_instructions")
+                        if handling:
+                            st.write(handling)
+                        else:
+                            st.info("No handling instructions available.")
+
+                        # Additional data
+                        with st.expander("View Additional Analysis Data"):
+                            st.json({
+                                "Reuse Ideas": saved_result.get("reuse_ideas"),
+                                "Potential Industry Matches": saved_result.get("potential_industry_matches"),
+                                "Metadata": saved_result.get("metadata"),
+                            })
+                    else:
+                        st.warning("Could not retrieve this analysis.")
+
+    except Exception as e:
+        st.error(f"Unable to load analysis history: {e}")
 # PAGE 4: Impact Dashboard (Coming Soon in Phase 6)
 # -----------------------------------------------------------------------------
 elif current_page == "Impact Dashboard":
