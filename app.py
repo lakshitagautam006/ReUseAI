@@ -9,7 +9,19 @@ from PIL import Image
 import base64
 import json
 from datetime import datetime
-from src.database.repository import save_analysis, get_all_analyses, get_analysis_by_id
+import pandas as pd
+import altair as alt
+from src.database.repository import (
+    save_analysis,
+    get_all_analyses,
+    get_analysis_by_id,
+    get_impact_summary,
+    get_category_distribution,
+    get_analyses_over_time,
+    get_condition_and_cleanliness_breakdown,
+    get_reuse_and_opportunity_stats,
+    get_top_materials,
+)
 
 from src.config import (
     GROQ_API_KEY,
@@ -1980,104 +1992,385 @@ elif current_page == "Analysis History":
 
     except Exception as e:
         st.error(f"Unable to load analysis history: {e}")
-# PAGE 4: Impact Dashboard (Coming Soon in Phase 6)
+# -----------------------------------------------------------------------------
+# PAGE 5: Impact Dashboard (Phase 7 – Live PostgreSQL Analytics)
 # -----------------------------------------------------------------------------
 elif current_page == "Impact Dashboard":
     st.markdown(
         """
         <div class="page-header">
             <div style="display: inline-block; background-color: #ECFDF5; color: #15803D; font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.65rem; border-radius: 12px; border: 1px solid #A7F3D0; margin-bottom: 0.5rem; text-transform: uppercase;">
-                Phase 6 Roadmap
+                Live Database Telemetry
             </div>
             <div class="page-title">🌱 Circular Impact Dashboard</div>
             <div class="page-subtitle">
-                Lifecycle carbon accounting, cumulative landfill diversion telemetry, and regional circularity benchmarks.
+                Real-time material classification trends, recyclability insights, and circular reuse analytics computed directly from saved PostgreSQL analyses.
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.info(
-        "ℹ️ **Coming Soon in Phase 6:** The Impact Dashboard is currently undergoing architectural modeling. "
-        "In future phases, verified database telemetry will track cumulative kg diverted from landfill, "
-        "avoided virgin extraction emissions, and localized resource circulation indexes. "
-        "*No fabricated statistics are displayed in accordance with data integrity commitments.*"
-    )
+    try:
+        summary = get_impact_summary()
+        total_analyses = summary["total_analyses"]
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### Planned Lifecycle Capabilities")
-
-    i1, i2 = st.columns(2)
-    with i1:
-        st.markdown(
-            """
-            <div class="eco-card">
-                <div style="font-size: 1.25rem; font-weight: 700; color: #14532D; margin-bottom: 0.35rem;">
-                    ⚖️ Landfill Diversion Accounting
+        if total_analyses == 0:
+            st.info(
+                "ℹ️ **No saved waste analyses found yet.** "
+                "Analyze a waste item in **Analyze Waste** to populate live recyclability insights, "
+                "material breakdowns, and opportunity matching statistics."
+            )
+            st.markdown(
+                """
+                <div class="eco-card" style="border-left: 4px solid #16A34A;">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #14532D; margin-bottom: 0.4rem;">
+                        📊 Ready to Track Your Analysis Telemetry
+                    </div>
+                    <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.55; margin-bottom: 0;">
+                        Once analyses are saved to PostgreSQL, this dashboard will automatically display total items analyzed,
+                        AI-assessed recyclability rates, waste category distributions, daily activity trends, condition and
+                        cleanliness breakdowns, reuse pathway statistics, and top materials—with zero fabricated estimates.
+                    </p>
                 </div>
-                <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.5;">
-                    Measures physical mass diverted from municipal solid waste streams, cataloging specific resin grades, metals, paperboard, and glass.
-                </p>
-                <span class="project-meta-pill">Target: Cumulative Weight (kg)</span>
-                <span class="project-meta-pill">Resin Segregation</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("← Return to Waste Analysis"):
+                navigate_to("Analyze Waste")
+        else:
+            category_data = get_category_distribution()
+            daily_data = get_analyses_over_time()
+            condition_cleanliness = get_condition_and_cleanliness_breakdown()
+            reuse_opp_stats = get_reuse_and_opportunity_stats(top_n=8)
+            top_materials = get_top_materials(limit=10)
 
-        st.markdown(
-            """
-            <div class="eco-card">
-                <div style="font-size: 1.25rem; font-weight: 700; color: #14532D; margin-bottom: 0.35rem;">
-                    🔄 Circular Velocity Index
+            # Data-integrity transparency banner
+            st.markdown(
+                """
+                <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 0.65rem 1.05rem; margin-bottom: 1.35rem; font-size: 0.84rem; color: #14532D;">
+                    🛡️ <strong>Data Integrity Note:</strong> All metrics below are aggregated directly from stored PostgreSQL records and reflect
+                    AI-assessed recyclability scores, generated reuse suggestions, and matched opportunities—not measured physical weight (kg) or verified CO₂ reductions.
                 </div>
-                <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.5;">
-                    Quantifies the number of secondary functional cycles each analyzed item undergoes before final biological or metallurgical breakdown.
-                </p>
-                <span class="project-meta-pill">Functional Longevity</span>
-                <span class="project-meta-pill">Cascade Utilization</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                """,
+                unsafe_allow_html=True,
+            )
 
-    with i2:
-        st.markdown(
-            """
-            <div class="eco-card">
-                <div style="font-size: 1.25rem; font-weight: 700; color: #14532D; margin-bottom: 0.35rem;">
-                    💨 Embodied Carbon Offsets
-                </div>
-                <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.5;">
-                    Calculates displacement of petrochemical and bauxite refining energy by calculating carbon equivalent ($CO_2e$) savings per upcycled item.
-                </p>
-                <span class="project-meta-pill">Embodied Energy</span>
-                <span class="project-meta-pill">Virgin Displacement</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            # -----------------------------------------------------------------
+            # 1. Core KPI Cards (4-column responsive row)
+            # -----------------------------------------------------------------
+            k1, k2, k3, k4 = st.columns(4)
 
-        st.markdown(
-            """
-            <div class="eco-card">
-                <div style="font-size: 1.25rem; font-weight: 700; color: #14532D; margin-bottom: 0.35rem;">
-                    📍 Localized Feedstock Exchange
-                </div>
-                <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.5;">
-                    Connects community waste streams with regional makerspaces, community gardens, and secondary mills to minimize transport logistics emissions.
-                </p>
-                <span class="project-meta-pill">Regional Logistics</span>
-                <span class="project-meta-pill">Decentralized Circularity</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            with k1:
+                st.markdown(
+                    f"""
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-label">Total Analyses</span>
+                            <span>📦</span>
+                        </div>
+                        <div class="metric-value">{summary['total_analyses']:,}</div>
+                        <div class="metric-subtext">
+                            {summary['unique_categories']} categories • Avg AI confidence {summary['avg_confidence_score']:.1%}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("← Return to Waste Analysis"):
-        navigate_to("Analyze Waste")
+            with k2:
+                st.markdown(
+                    f"""
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-label">Recyclable Rate</span>
+                            <span>♻️</span>
+                        </div>
+                        <div class="metric-value">{summary['recyclable_rate']:.1f}%</div>
+                        <div class="metric-subtext">
+                            {summary['recyclable_count']}/{summary['total_analyses']} items (score ≥ 50) • Avg {summary['avg_recyclability_score']:.1f}/100
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            with k3:
+                st.markdown(
+                    f"""
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-label">Reuse Pathways</span>
+                            <span>💡</span>
+                        </div>
+                        <div class="metric-value">{summary['total_reuse_suggestions']:,}</div>
+                        <div class="metric-subtext">
+                            Avg {summary['avg_suggestions_per_analysis']:.1f}/item • {summary['high_viability_count']} high-viability (≥ 70)
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            with k4:
+                opp_subtext = (
+                    f"Avg match score {summary['avg_match_score']:.1f}%"
+                    if summary["total_matched_opportunities"] > 0
+                    else "No scored opportunities yet"
+                )
+                st.markdown(
+                    f"""
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-label">Matched Opportunities</span>
+                            <span>🤝</span>
+                        </div>
+                        <div class="metric-value">{summary['total_matched_opportunities']:,}</div>
+                        <div class="metric-subtext">{opp_subtext}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # -----------------------------------------------------------------
+            # 2. Material Category Distribution & Daily Analysis Activity
+            # -----------------------------------------------------------------
+            chart_col1, chart_col2 = st.columns(2, gap="medium")
+
+            with chart_col1:
+                st.markdown("#### 🗂️ Material Category Distribution")
+                st.caption("Saved analyses grouped by primary waste category (with AI recyclability averages).")
+                if category_data:
+                    cat_df = pd.DataFrame(category_data)
+                    cat_df["avg_confidence_pct"] = (cat_df["avg_confidence_score"] * 100).round(1)
+                    cat_chart = (
+                        alt.Chart(cat_df)
+                        .mark_bar(cornerRadiusTopRight=6, cornerRadiusBottomRight=6, color="#16A34A")
+                        .encode(
+                            x=alt.X("count:Q", title="Number of Analyses", axis=alt.Axis(tickMinStep=1)),
+                            y=alt.Y("primary_category:N", sort="-x", title=None),
+                            tooltip=[
+                                alt.Tooltip("primary_category:N", title="Category"),
+                                alt.Tooltip("count:Q", title="Analyses"),
+                                alt.Tooltip("avg_recyclability_score:Q", title="Avg Recyclability (/100)", format=".1f"),
+                                alt.Tooltip("avg_confidence_pct:Q", title="Avg AI Confidence (%)", format=".1f"),
+                            ],
+                        )
+                        .properties(height=280)
+                    )
+                    st.altair_chart(cat_chart, use_container_width=True)
+                else:
+                    st.info("No category distribution data available.")
+
+            with chart_col2:
+                st.markdown("#### 📅 Daily Analysis Activity")
+                st.caption("Number of waste analyses saved per day based on database timestamps.")
+                if daily_data:
+                    daily_df = pd.DataFrame(daily_data)
+                    daily_df["date_str"] = pd.to_datetime(daily_df["date"]).dt.strftime("%Y-%m-%d")
+
+                    if len(daily_df) == 1:
+                        activity_chart = (
+                            alt.Chart(daily_df)
+                            .mark_bar(size=48, cornerRadiusTopLeft=6, cornerRadiusTopRight=6, color="#14532D")
+                            .encode(
+                                x=alt.X("date_str:O", title="Date"),
+                                y=alt.Y("count:Q", title="Analyses Saved", axis=alt.Axis(tickMinStep=1)),
+                                tooltip=[
+                                    alt.Tooltip("date_str:O", title="Date"),
+                                    alt.Tooltip("count:Q", title="Analyses"),
+                                ],
+                            )
+                            .properties(height=280)
+                        )
+                    else:
+                        base_daily = alt.Chart(daily_df).encode(
+                            x=alt.X("date_str:O", title="Date", axis=alt.Axis(labelAngle=-35)),
+                            y=alt.Y("count:Q", title="Analyses Saved", axis=alt.Axis(tickMinStep=1)),
+                            tooltip=[
+                                alt.Tooltip("date_str:O", title="Date"),
+                                alt.Tooltip("count:Q", title="Analyses"),
+                            ],
+                        )
+                        activity_chart = (
+                            base_daily.mark_area(color="#DCFCE7", opacity=0.7)
+                            + base_daily.mark_line(color="#16A34A", strokeWidth=2.5)
+                            + base_daily.mark_point(color="#14532D", filled=True, size=65)
+                        ).properties(height=280)
+
+                    st.altair_chart(activity_chart, use_container_width=True)
+                else:
+                    st.info("No timestamped activity records available.")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # -----------------------------------------------------------------
+            # 3. Physical Condition & Cleanliness Level Breakdown
+            # -----------------------------------------------------------------
+            qual_col1, qual_col2 = st.columns(2, gap="medium")
+
+            with qual_col1:
+                st.markdown("#### 🔍 Physical Condition Breakdown")
+                st.caption("Distribution of AI-assessed physical condition across analyzed materials.")
+                conditions_list = condition_cleanliness.get("conditions", [])
+                if conditions_list:
+                    cond_df = pd.DataFrame(conditions_list)
+                    cond_chart = (
+                        alt.Chart(cond_df)
+                        .mark_bar(cornerRadiusTopRight=6, cornerRadiusBottomRight=6, color="#15803D")
+                        .encode(
+                            x=alt.X("count:Q", title="Analyses", axis=alt.Axis(tickMinStep=1)),
+                            y=alt.Y("physical_condition:N", sort="-x", title=None),
+                            tooltip=[
+                                alt.Tooltip("physical_condition:N", title="Condition"),
+                                alt.Tooltip("count:Q", title="Analyses"),
+                            ],
+                        )
+                        .properties(height=240)
+                    )
+                    st.altair_chart(cond_chart, use_container_width=True)
+                else:
+                    st.info("No physical condition records available.")
+
+            with qual_col2:
+                st.markdown("#### 🧼 Cleanliness Level Breakdown")
+                st.caption("Surface contamination and cleanliness assessment across analyzed items.")
+                cleanliness_list = condition_cleanliness.get("cleanliness", [])
+                if cleanliness_list:
+                    clean_df = pd.DataFrame(cleanliness_list)
+                    clean_chart = (
+                        alt.Chart(clean_df)
+                        .mark_bar(cornerRadiusTopRight=6, cornerRadiusBottomRight=6, color="#059669")
+                        .encode(
+                            x=alt.X("count:Q", title="Analyses", axis=alt.Axis(tickMinStep=1)),
+                            y=alt.Y("cleanliness_level:N", sort="-x", title=None),
+                            tooltip=[
+                                alt.Tooltip("cleanliness_level:N", title="Cleanliness"),
+                                alt.Tooltip("count:Q", title="Analyses"),
+                            ],
+                        )
+                        .properties(height=240)
+                    )
+                    st.altair_chart(clean_chart, use_container_width=True)
+                else:
+                    st.info("No cleanliness level records available.")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # -----------------------------------------------------------------
+            # 4. Reuse Suggestions & Matched Opportunity Insights
+            # -----------------------------------------------------------------
+            ins_col1, ins_col2 = st.columns(2, gap="medium")
+
+            with ins_col1:
+                st.markdown("#### 💡 Reuse Suggestion Insights")
+                st.caption("Breakdown of saved reuse suggestions by difficulty and qualitative AI-assigned offset tier (not measured CO₂).")
+
+                ratings_list = reuse_opp_stats.get("carbon_offset_ratings", [])
+                difficulty_list = reuse_opp_stats.get("difficulty_levels", [])
+
+                if ratings_list:
+                    pills_html = "".join(
+                        f'<span class="project-meta-pill" style="background:#ECFDF5; color:#14532D; border:1px solid #A7F3D0;">'
+                        f'AI Offset Tier — {str(item["rating"]).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}: '
+                        f'<strong>{item["count"]}</strong></span>'
+                        for item in ratings_list
+                    )
+                    st.markdown(
+                        f'<div style="margin-bottom: 0.75rem;">{pills_html}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                if difficulty_list:
+                    diff_df = pd.DataFrame(difficulty_list)
+                    diff_chart = (
+                        alt.Chart(diff_df)
+                        .mark_bar(cornerRadiusTopRight=6, cornerRadiusBottomRight=6, color="#16A34A")
+                        .encode(
+                            x=alt.X("count:Q", title="Suggestions", axis=alt.Axis(tickMinStep=1)),
+                            y=alt.Y("difficulty:N", sort="-x", title="Difficulty"),
+                            tooltip=[
+                                alt.Tooltip("difficulty:N", title="Difficulty"),
+                                alt.Tooltip("count:Q", title="Suggestions"),
+                            ],
+                        )
+                        .properties(height=210)
+                    )
+                    st.altair_chart(diff_chart, use_container_width=True)
+                else:
+                    st.info("No reuse suggestions recorded yet.")
+
+            with ins_col2:
+                st.markdown("#### 🤝 Top Matched Opportunity Categories")
+                st.caption("Most frequent secondary-use categories matched from saved analyses.")
+                opp_categories = reuse_opp_stats.get("opportunity_categories", [])
+                if opp_categories:
+                    opp_df = pd.DataFrame(opp_categories)
+                    opp_chart = (
+                        alt.Chart(opp_df)
+                        .mark_bar(cornerRadiusTopRight=6, cornerRadiusBottomRight=6, color="#14532D")
+                        .encode(
+                            x=alt.X("count:Q", title="Matched Opportunities", axis=alt.Axis(tickMinStep=1)),
+                            y=alt.Y("opportunity_category:N", sort="-x", title=None),
+                            tooltip=[
+                                alt.Tooltip("opportunity_category:N", title="Opportunity Category"),
+                                alt.Tooltip("count:Q", title="Matches"),
+                                alt.Tooltip("avg_match_score:Q", title="Avg Match Score (%)", format=".1f"),
+                            ],
+                        )
+                        .properties(height=250)
+                    )
+                    st.altair_chart(opp_chart, use_container_width=True)
+                else:
+                    st.info("No matched opportunities recorded yet.")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # -----------------------------------------------------------------
+            # 5. Top Analyzed Materials Table
+            # -----------------------------------------------------------------
+            st.markdown("#### 🧾 Top Analyzed Materials")
+            st.caption("Most frequently identified materials ranked by analysis count and average AI recyclability score.")
+            if top_materials:
+                materials_table = [
+                    {
+                        "Material": item["material_type"],
+                        "Category": item["primary_category"],
+                        "Analyses": item["count"],
+                        "Avg Recyclability (/100)": f'{item["avg_recyclability_score"]:.1f}',
+                        "Avg AI Confidence": f'{item["avg_confidence_score"]:.1%}',
+                    }
+                    for item in top_materials
+                ]
+                st.dataframe(
+                    materials_table,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.info("No material summary records available.")
+
+            st.markdown("<br><hr>", unsafe_allow_html=True)
+            nav_col1, nav_col2, _ = st.columns([1.4, 1.4, 2.2])
+            with nav_col1:
+                if st.button("← Return to Waste Analysis", use_container_width=True):
+                    navigate_to("Analyze Waste")
+            with nav_col2:
+                if st.button("📂 View Analysis History", use_container_width=True):
+                    navigate_to("Analysis History")
+
+    except Exception as db_err:
+        st.error(f"⚠️ Unable to load Impact Dashboard telemetry from PostgreSQL: {db_err}")
+        st.caption(
+            "Verify that PostgreSQL is running and `DATABASE_URL` is configured properly. "
+            "No placeholder or fabricated metrics are shown when the database is unavailable."
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("← Return to Waste Analysis"):
+            navigate_to("Analyze Waste")
 
 
 # -----------------------------------------------------------------------------
