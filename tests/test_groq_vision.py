@@ -4,6 +4,7 @@ the 6-field JSON schema (material, waste_type, condition, recyclable, confidence
 and error/quota/timeout handling.
 """
 
+import os
 import unittest
 from unittest.mock import patch, MagicMock
 from io import BytesIO
@@ -132,6 +133,67 @@ class TestGroqVisionIntegration(unittest.TestCase):
                 self.client.analyze_image(self.sample_img)
             self.assertIn("rate limit or quota", str(ctx.exception).lower())
 
+    def test_error_handling_timeout_connection_and_empty_response(self):
+        """Verify timeout, network connection, and empty model responses produce clear errors."""
+        from groq import APITimeoutError, APIConnectionError
+
+        with patch.object(
+            self.client.client.chat.completions,
+            "create",
+            side_effect=APITimeoutError(request=MagicMock()),
+        ):
+            with self.assertRaises(TimeoutError) as ctx:
+                self.client.analyze_image(self.sample_img)
+            self.assertIn("timed out", str(ctx.exception).lower())
+
+        with patch.object(
+            self.client.client.chat.completions,
+            "create",
+            side_effect=APIConnectionError(request=MagicMock()),
+        ):
+            with self.assertRaises(ConnectionError) as ctx:
+                self.client.analyze_image(self.sample_img)
+            self.assertIn("connect", str(ctx.exception).lower())
+
+        empty_completion = MagicMock()
+        empty_completion.choices = []
+        with patch.object(
+            self.client.client.chat.completions,
+            "create",
+            return_value=empty_completion,
+        ):
+            with self.assertRaises(ValueError) as ctx:
+                self.client.analyze_image(self.sample_img)
+            self.assertIn("empty", str(ctx.exception).lower())
+
+    def test_schema_legacy_low_recyclability_and_confidence_clamping(self):
+        """Verify legacy recyclability_score < 50 maps to recyclable=False and confidence is clamped."""
+        normalized = self.client._normalize_schema(
+            {
+                "material_type": "Contaminated Styrofoam",
+                "primary_category": "Plastics",
+                "physical_condition": "Fragmented",
+                "recyclability_score": 20,
+                "confidence_score": 1.45,
+                "reuse_ideas": ["Packing filler"],
+            }
+        )
+        self.assertFalse(normalized["recyclable"])
+        self.assertEqual(normalized["confidence"], 1.0)
+
+        normalized_low = self.client._normalize_schema(
+            {
+                "material": "Unknown Scrap",
+                "waste_type": "Other",
+                "condition": "Damaged",
+                "recyclable": False,
+                "confidence": -0.25,
+                "reuse_ideas": ["Inspect for safe disposal"],
+            }
+        )
+        self.assertFalse(normalized_low["recyclable"])
+        self.assertEqual(normalized_low["confidence"], 0.0)
+
     def test_end_to_end_analyzer_with_exact_schema(self):
         """Requirements 6 & 7: Verify full single-request analyzer with the 6-field schema."""
         analyzer = WasteAnalyzer(api_key="mock_key")
@@ -176,8 +238,39 @@ class TestGroqVisionIntegration(unittest.TestCase):
             parsed_json = json.loads(schema_json)
             self.assertEqual(set(parsed_json.keys()), expected_keys)
 
+            # Verify data types of all six standardized fields
+            self.assertIsInstance(parsed_json["material"], str)
+            self.assertIsInstance(parsed_json["waste_type"], str)
+            self.assertIsInstance(parsed_json["condition"], str)
+            self.assertIsInstance(parsed_json["recyclable"], bool)
+            self.assertIsInstance(parsed_json["confidence"], float)
+            self.assertIsInstance(parsed_json["reuse_ideas"], list)
+
+            self.assertTrue(
+                all(isinstance(idea, str) for idea in parsed_json["reuse_ideas"])
+            )
+
+            # Verify flat six-field JSON reconstruction
+            reconstructed = WasteAnalysisResult.from_dict(parsed_json)
+
+            self.assertEqual(
+                reconstructed.material.material_type,
+                parsed_json["material"]
+            )
+            self.assertEqual(reconstructed.waste_type, parsed_json["waste_type"])
+            self.assertEqual(reconstructed.condition, parsed_json["condition"])
+            self.assertEqual(reconstructed.recyclable, parsed_json["recyclable"])
+            self.assertEqual(reconstructed.confidence, parsed_json["confidence"])
+            self.assertEqual(
+                reconstructed.to_schema_dict().keys(),
+                expected_keys
+            )
+
+
     def test_live_groq_vision_if_key_available(self):
-        """Live integration test against Groq Vision API if valid key is in environment."""
+        """Opt-in live integration test against Groq Vision API (set RUN_LIVE_GROQ_TESTS=1)."""
+        if os.getenv("RUN_LIVE_GROQ_TESTS", "").strip() != "1":
+            self.skipTest("Live Groq API test skipped by default; set RUN_LIVE_GROQ_TESTS=1 to run.")
         if not GROQ_API_KEY or GROQ_API_KEY.startswith("your_"):
             self.skipTest("No active GROQ_API_KEY configured in environment.")
 

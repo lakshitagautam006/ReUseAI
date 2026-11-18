@@ -26,6 +26,7 @@ from src.config import (
     GROQ_API_KEY,
     DEFAULT_MODEL,
     API_REQUEST_TIMEOUT_MS,
+    MAX_API_RETRIES,
 )
 from src.utils.image_processor import image_to_bytes
 
@@ -70,6 +71,7 @@ class GroqVisionClient:
             self.client = Groq(
                 api_key=self.api_key,
                 timeout=timeout_sec,
+                max_retries=max(0, MAX_API_RETRIES - 1),
             )
         except Exception:
             self.client = None
@@ -158,6 +160,8 @@ class GroqVisionClient:
                 temperature=0.2,
                 max_tokens=1500,
             )
+            if not completion or not completion.choices or not completion.choices[0].message:
+                raise ValueError("Groq Vision API returned an empty response.")
             return completion.choices[0].message.content or ""
         except AuthenticationError as exc:
             raise PermissionError(
@@ -184,7 +188,9 @@ class GroqVisionClient:
 
     def _extract_json(self, response_text: str) -> Dict[str, Any]:
         """Extract and parse JSON from model response text with robust fallback logic."""
-        text = response_text.strip()
+        if not response_text or not str(response_text).strip():
+            raise ValueError("Vision model returned an empty response.")
+        text = str(response_text).strip()
 
         # If already clean JSON
         if text.startswith("{") and text.endswith("}"):
@@ -219,6 +225,8 @@ class GroqVisionClient:
         condition = str(raw.get("condition") or raw.get("physical_condition", "Intact")).strip()
 
         rec_val = raw.get("recyclable")
+        if rec_val is None:
+            rec_val = raw.get("recyclability_score")
         if isinstance(rec_val, bool):
             recyclable = rec_val
         elif isinstance(rec_val, (int, float)):
@@ -230,9 +238,9 @@ class GroqVisionClient:
 
         conf_val = raw.get("confidence")
         if conf_val is None:
-            conf_val = raw_data_conf = raw.get("confidence_score", 0.90)
+            conf_val = raw.get("confidence_score", 0.90)
         try:
-            confidence = round(float(conf_val), 2)
+            confidence = round(max(0.0, min(1.0, float(conf_val))), 2)
         except (ValueError, TypeError):
             confidence = 0.90
 

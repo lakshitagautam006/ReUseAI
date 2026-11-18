@@ -5,71 +5,82 @@ from src.database.connection import get_connection
 
 
 def save_analysis(result):
-    """Save a complete waste analysis and its related suggestions."""
+    """Save a complete waste analysis and its related suggestions in a single transaction."""
+
+    if result is None or not hasattr(result, "to_dict"):
+        raise ValueError("Expected a valid WasteAnalysisResult instance to save.")
 
     data = result.to_dict()
-    material = data["material"]
+    material = data.get("material")
+    if not isinstance(material, dict):
+        raise ValueError("Analysis result is missing structured material data.")
 
     with get_connection() as conn:
-        with conn.cursor() as cur:
+        try:
+            with conn.cursor() as cur:
 
-            # Save main analysis
-            cur.execute(
-                """
-                INSERT INTO analyses (
-                    material_type,
-                    primary_category,
-                    sub_category,
-                    confidence_score,
-                    cleanliness_level,
-                    physical_condition,
-                    recyclability_score,
-                    full_result
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id;
-                """,
-                (
-                    material["material_type"],
-                    material["primary_category"],
-                    material["sub_category"],
-                    material["confidence_score"],
-                    material["cleanliness_level"],
-                    material["physical_condition"],
-                    material["recyclability_score"],
-                    json.dumps(data),
-                ),
-            )
-
-            analysis_id = cur.fetchone()[0]
-
-            # Save reuse suggestions
-            for suggestion in data.get("reuse_suggestions", []):
+                # Save main analysis
                 cur.execute(
                     """
-                    INSERT INTO reuse_suggestions
-                    (analysis_id, suggestion_data)
-                    VALUES (%s, %s);
+                    INSERT INTO analyses (
+                        material_type,
+                        primary_category,
+                        sub_category,
+                        confidence_score,
+                        cleanliness_level,
+                        physical_condition,
+                        recyclability_score,
+                        full_result
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id;
                     """,
-                    (analysis_id, json.dumps(suggestion)),
+                    (
+                        material["material_type"],
+                        material["primary_category"],
+                        material["sub_category"],
+                        material["confidence_score"],
+                        material["cleanliness_level"],
+                        material["physical_condition"],
+                        material["recyclability_score"],
+                        json.dumps(data),
+                    ),
                 )
 
-            # Save matched opportunities
-            for opportunity in data.get("matched_opportunities", []):
-                cur.execute(
-                    """
-                    INSERT INTO matched_opportunities
-                    (analysis_id, opportunity_data)
-                    VALUES (%s, %s);
-                    """,
-                    (analysis_id, json.dumps(opportunity)),
-                )
+                analysis_id = cur.fetchone()[0]
+
+                # Save reuse suggestions
+                for suggestion in data.get("reuse_suggestions", []):
+                    cur.execute(
+                        """
+                        INSERT INTO reuse_suggestions
+                        (analysis_id, suggestion_data)
+                        VALUES (%s, %s);
+                        """,
+                        (analysis_id, json.dumps(suggestion)),
+                    )
+
+                # Save matched opportunities
+                for opportunity in data.get("matched_opportunities", []):
+                    cur.execute(
+                        """
+                        INSERT INTO matched_opportunities
+                        (analysis_id, opportunity_data)
+                        VALUES (%s, %s);
+                        """,
+                        (analysis_id, json.dumps(opportunity)),
+                    )
+        except Exception:
+            conn.rollback()
+            raise
 
     return analysis_id
 
 
 def get_all_analyses(limit=50):
     """Retrieve the latest saved analyses."""
+
+    safe_limit = max(1, int(limit))
 
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -81,7 +92,7 @@ def get_all_analyses(limit=50):
                 ORDER BY created_at DESC
                 LIMIT %s;
                 """,
-                (limit,),
+                (safe_limit,),
             )
 
             rows = cur.fetchall()
@@ -102,6 +113,14 @@ def get_all_analyses(limit=50):
 def get_analysis_by_id(analysis_id):
     """Retrieve one complete analysis using its ID."""
 
+    try:
+        parsed_id = int(analysis_id)
+    except (TypeError, ValueError):
+        return None
+
+    if parsed_id <= 0:
+        return None
+
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -110,7 +129,7 @@ def get_analysis_by_id(analysis_id):
                 FROM analyses
                 WHERE id = %s;
                 """,
-                (analysis_id,),
+                (parsed_id,),
             )
 
             row = cur.fetchone()
@@ -118,7 +137,11 @@ def get_analysis_by_id(analysis_id):
     if row is None:
         return None
 
-    return row[0]
+    payload = row[0]
+    if isinstance(payload, str):
+        return json.loads(payload)
+
+    return payload
 
 
 def get_impact_summary():

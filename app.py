@@ -1254,6 +1254,7 @@ elif current_page == "Analyze Waste":
                     }
 
                 except Exception as db_error:
+                    st.session_state["saved_analysis_id"] = None
                     st.session_state["database_save_status"] = {
                         "success": False,
                         "analysis_id": None,

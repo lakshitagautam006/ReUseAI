@@ -77,7 +77,10 @@ class MaterialDetector:
         confidence_val = raw_data.get("confidence")
         if confidence_val is None:
             confidence_val = raw_data.get("confidence_score", 0.85)
-        confidence = float(confidence_val)
+        try:
+            confidence = float(confidence_val)
+        except (ValueError, TypeError):
+            confidence = 0.85
 
         cleanliness = str(raw_data.get("cleanliness_level", "Clean")).strip()
         condition = str(
