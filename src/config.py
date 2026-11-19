@@ -17,7 +17,19 @@ else:
     load_dotenv()
 
 # Groq Vision AI Credentials & Settings
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+import os
+import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()
+
+try:
+    GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
+except Exception:
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+GROQ_API_KEY = GROQ_API_KEY.strip()
+
 DEFAULT_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b").strip()
 APP_ENV = os.getenv("APP_ENV", "development").strip()
 
