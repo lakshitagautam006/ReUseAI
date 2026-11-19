@@ -87,7 +87,7 @@ def get_all_analyses(limit=50):
             cur.execute(
                 """
                 SELECT id, material_type, primary_category,
-                       physical_condition, confidence_score, created_at
+                       physical_condition, confidence_score, created_at, cleanliness_level
                 FROM analyses
                 ORDER BY created_at DESC
                 LIMIT %s;
@@ -105,6 +105,7 @@ def get_all_analyses(limit=50):
             "physical_condition": row[3],
             "confidence_score": row[4],
             "created_at": row[5],
+            "cleanliness_level": row[6] or "Unknown",
         }
         for row in rows
     ]
@@ -142,6 +143,52 @@ def get_analysis_by_id(analysis_id):
         return json.loads(payload)
 
     return payload
+
+
+def delete_analysis(analysis_id):
+    """Delete a single analysis by its ID and remove associated suggestions and opportunities.
+
+    Returns True if deleted, False if record was not found or ID was invalid.
+    """
+    try:
+        parsed_id = int(analysis_id)
+    except (TypeError, ValueError):
+        return False
+
+    if parsed_id <= 0:
+        return False
+
+    with get_connection() as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM reuse_suggestions WHERE analysis_id = %s;", (parsed_id,))
+                cur.execute("DELETE FROM matched_opportunities WHERE analysis_id = %s;", (parsed_id,))
+                cur.execute("DELETE FROM analyses WHERE id = %s;", (parsed_id,))
+                deleted = cur.rowcount > 0
+            conn.commit()
+            return deleted
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def clear_all_analyses():
+    """Delete all saved analyses and their associated reuse suggestions and matched opportunities.
+
+    Returns the count of deleted main analysis records.
+    """
+    with get_connection() as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM reuse_suggestions;")
+                cur.execute("DELETE FROM matched_opportunities;")
+                cur.execute("DELETE FROM analyses;")
+                count = cur.rowcount
+            conn.commit()
+            return count
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def get_impact_summary():

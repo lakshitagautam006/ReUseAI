@@ -21,6 +21,8 @@ from src.database.repository import (
     save_analysis,
     get_all_analyses,
     get_analysis_by_id,
+    delete_analysis,
+    clear_all_analyses,
 )
 from src.models.schemas import (
     MaterialAnalysis,
@@ -224,6 +226,29 @@ class TestDatabaseRepositoryUnit(unittest.TestCase):
             self.assertIsNone(get_analysis_by_id(0))
             self.assertIsNone(get_analysis_by_id(-7))
             mock_conn.assert_not_called()
+
+    def test_delete_analysis_unit(self):
+        # Case 1: Valid positive ID with deleted row
+        conn1, cur1 = _mock_db_connection()
+        cur1.rowcount = 1
+        with patch.object(repository, "get_connection", return_value=conn1):
+            res = delete_analysis(10)
+        self.assertTrue(res)
+
+        # Case 2: Invalid or non-positive IDs return False without DB query
+        with patch.object(repository, "get_connection") as mock_conn:
+            self.assertFalse(delete_analysis(None))
+            self.assertFalse(delete_analysis("not-an-int"))
+            self.assertFalse(delete_analysis(0))
+            self.assertFalse(delete_analysis(-5))
+            mock_conn.assert_not_called()
+
+    def test_clear_all_analyses_unit(self):
+        conn, cur = _mock_db_connection()
+        cur.rowcount = 8
+        with patch.object(repository, "get_connection", return_value=conn):
+            count = clear_all_analyses()
+        self.assertEqual(count, 8)
 
     def test_get_connection_rejects_missing_or_placeholder_url(self):
         with patch.dict(os.environ, {"DATABASE_URL": ""}, clear=False):

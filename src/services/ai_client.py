@@ -30,13 +30,15 @@ from src.config import (
 )
 from src.utils.image_processor import image_to_bytes
 
-# Strict system prompt enforcing the exact standardized 6-field JSON schema
+# Strict system prompt enforcing the standardized JSON schema with visual cleanliness classification
 VISION_SYSTEM_PROMPT = """You are ReUseAI, an expert circular economy and material classification vision AI.
-Analyze the provided waste material image. You MUST return ONLY a valid JSON object with this exact schema:
+Analyze the provided waste material image. You MUST return ONLY a valid JSON object with this schema:
 {
   "material": "Specific material name (e.g. Polyethylene Terephthalate / PET Plastic)",
   "waste_type": "Primary waste category (e.g. Plastics, Cardboard & Paper, Metals, Glass, Textiles, Electronics, Wood & Timber, Organics, Other)",
-  "condition": "Physical condition and state (e.g. Intact, Clean / Crushed / Lightly Soiled / Fragmented)",
+  "condition": "Physical condition and state (e.g. Intact, Crushed, Torn, Fragmented)",
+  "cleanliness_level": "Clean / Moderately Dirty / Dirty / Unknown",
+  "cleanliness_explanation": "Short visual evidence explanation supporting the cleanliness classification",
   "recyclable": true,
   "confidence": 0.95,
   "reuse_ideas": [
@@ -44,6 +46,14 @@ Analyze the provided waste material image. You MUST return ONLY a valid JSON obj
     "Unique Descriptive Project 2: 1. Preparation step... 2. Measuring/cutting step... 3. Assembly step... 4. Finishing step... 5. Practical deployment step"
   ]
 }
+Requirements for cleanliness_level:
+- Must strictly be one of: 'Clean', 'Moderately Dirty', 'Dirty', 'Unknown'.
+- 'Clean': No significant visible dirt or stains.
+- 'Moderately Dirty': Minor visible dirt, dust, stains or residue.
+- 'Dirty': Extensive visible mud, dirt, grease, stains or surface contamination.
+- 'Unknown': Image quality or view is insufficient to determine cleanliness.
+- NEVER use 'Clean' as a default. Base strictly on visual evidence.
+- Include a short 'cleanliness_explanation' describing the visual evidence.
 Requirements for reuse_ideas:
 - Provide 2 to 3 distinct, practical reuse or upcycling applications.
 - Never use generic titles like 'DIY Upcycling Project'. Give a specific descriptive project title.
@@ -277,7 +287,7 @@ class GroqVisionClient:
         }
 
         # Preserve any additional domain fields if available
-        for key in ("handling_instructions", "detected_features", "hazardous_elements", "summary"):
+        for key in ("cleanliness_level", "cleanliness_explanation", "handling_instructions", "detected_features", "hazardous_elements", "summary"):
             if key in raw:
                 normalized[key] = raw[key]
 

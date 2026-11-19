@@ -17,11 +17,12 @@ class MaterialAnalysis:
     primary_category: str                # e.g., "Plastics", "Cardboard & Paper", "Metals"
     sub_category: str                    # e.g., "Rigid Container (Code #1)"
     confidence_score: float              # 0.0 to 1.0
-    cleanliness_level: str               # "Clean", "Lightly Soiled", "Heavily Contaminated"
+    cleanliness_level: str               # "Clean", "Moderately Dirty", "Dirty", "Unknown"
     physical_condition: str              # "Intact", "Slightly Damaged", "Fragmented"
     recyclability_score: int             # 0 to 100 index
     detected_features: List[str] = field(default_factory=list)
     hazardous_elements: List[str] = field(default_factory=list)
+    cleanliness_explanation: Optional[str] = None
 
     @property
     def material(self) -> str:
@@ -146,6 +147,8 @@ class WasteAnalysisResult:
         data["recyclable"] = self.recyclable
         data["confidence"] = self.confidence
         data["reuse_ideas"] = self.reuse_ideas
+        data["cleanliness_level"] = self.material.cleanliness_level
+        data["cleanliness_explanation"] = self.material.cleanliness_explanation
         return data
 
     def to_json(self, indent: int = 2) -> str:
@@ -166,29 +169,35 @@ class WasteAnalysisResult:
             confidence_score = float(data.get("confidence", 0.9))
             rec_val = data.get("recyclable", True)
             rec_score = 85 if rec_val is True else (25 if rec_val is False else int(rec_val))
+            cleanliness_val = data.get("cleanliness_level")
+            cleanliness_str = str(cleanliness_val).strip() if cleanliness_val and str(cleanliness_val).strip() else "Unknown"
             material = MaterialAnalysis(
                 material_type=material_type,
                 primary_category=primary_category,
                 sub_category=str(data.get("sub_category", "Standard grade")).strip(),
                 confidence_score=confidence_score,
-                cleanliness_level=str(data.get("cleanliness_level", "Clean")).strip(),
+                cleanliness_level=cleanliness_str,
                 physical_condition=physical_condition,
                 recyclability_score=rec_score,
                 detected_features=data.get("detected_features", []),
                 hazardous_elements=data.get("hazardous_elements", []),
+                cleanliness_explanation=data.get("cleanliness_explanation"),
             )
         else:
             # Nested dictionary
+            cleanliness_val = raw_mat.get("cleanliness_level") or data.get("cleanliness_level")
+            cleanliness_str = str(cleanliness_val).strip() if cleanliness_val and str(cleanliness_val).strip() else "Unknown"
             material = MaterialAnalysis(
                 material_type=raw_mat.get("material_type", "Unknown"),
                 primary_category=raw_mat.get("primary_category", "Unknown"),
                 sub_category=raw_mat.get("sub_category", "Unknown"),
                 confidence_score=float(raw_mat.get("confidence_score", 0.0)),
-                cleanliness_level=raw_mat.get("cleanliness_level", "Unknown"),
+                cleanliness_level=cleanliness_str,
                 physical_condition=raw_mat.get("physical_condition", "Unknown"),
                 recyclability_score=int(raw_mat.get("recyclability_score", 0)),
                 detected_features=raw_mat.get("detected_features", []),
                 hazardous_elements=raw_mat.get("hazardous_elements", []),
+                cleanliness_explanation=raw_mat.get("cleanliness_explanation", data.get("cleanliness_explanation")),
             )
 
         # Parse suggestions from either reuse_suggestions or reuse_ideas

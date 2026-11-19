@@ -1,7 +1,7 @@
 """ReUseAI – Intelligent Waste-to-Resource Matcher
-Streamlit Application Frontend (Phase 5 – Eco Green Dashboard).
-Subsystem 1: Computer Vision & Material Perception Engine.
-Theme: Forest Green (#14532D), Emerald Green (#16A34A), Mint Accent (#A7F3D0), Off-White (#F8FAF7).
+Streamlit Enterprise Application Frontend.
+Subsystem: Computer Vision & Material Perception Engine.
+Theme: Enterprise Eco Green Light Theme.
 """
 
 import streamlit as st
@@ -15,6 +15,8 @@ from src.database.repository import (
     save_analysis,
     get_all_analyses,
     get_analysis_by_id,
+    delete_analysis,
+    clear_all_analyses,
     get_impact_summary,
     get_category_distribution,
     get_analyses_over_time,
@@ -32,6 +34,7 @@ from src.config import (
     is_api_configured,
 )
 from src.services.analyzer import WasteAnalyzer
+from src.services.material_detector import MaterialDetector
 from src.utils.image_processor import (
     get_image_metadata,
     validate_image,
@@ -412,66 +415,78 @@ def render_svg_as_image(svg_content: str, max_height: str = "420px") -> str:
     return f'<img src="data:image/svg+xml;base64,{b64_svg}" alt="Sustainability Illustration" style="width: 100%; max-height: {max_height}; object-fit: contain; display: block; margin: auto;" />'
 
 
-# Premium Eco Green Theme Stylesheet
+# -----------------------------------------------------------------------------
+# Enterprise Theme: Consistent Eco Green Light Theme
+# -----------------------------------------------------------------------------
+theme_variables = """
+    :root {
+        --primary: #14532D;         /* Dark Forest Green */
+        --primary-hover: #16A34A;
+        --secondary: #16A34A;       /* Vibrant Emerald Green */
+        --accent: #A7F3D0;          /* Mint Green Accent */
+        --accent-soft: #ECFDF5;     /* Soft Mint Background */
+        --bg-main: #F8FAF7;         /* Soft Off-White */
+        --card-bg: #FFFFFF;         /* Pure White */
+        --card-bg-subtle: #F1F5F9;
+        --card-border: #E2E8F0;     /* Light Neutral Border */
+        --border-light: #E5E7EB;
+        --border-green: #D1FAE5;
+        --sidebar-bg: #0F381E;      /* Rich Dark Forest */
+        --text-primary: #111827;    /* Dark Charcoal */
+        --text-secondary: #4B5563;  /* Muted Slate Grey */
+        --text-muted: #6B7280;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+        --shadow-md: 0 4px 14px rgba(20, 83, 45, 0.07), 0 1px 3px rgba(0, 0, 0, 0.03);
+        --shadow-lg: 0 10px 25px -3px rgba(20, 83, 45, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+        --input-bg: #FFFFFF;
+        --pill-bg: #F1F5F9;
+        --pill-text: #334155;
+    }
+"""
+
 st.markdown(
-    """
+    f"""
     <style>
+        {theme_variables}
+
         /* -------------------------------------------------------------------------
-           1. Global Color System & Typography
+           1. Global App Layout & Typography
            ------------------------------------------------------------------------- */
-        :root {
-            --primary: #14532D;         /* Dark Forest Green */
-            --secondary: #16A34A;       /* Vibrant Emerald Green */
-            --accent: #A7F3D0;          /* Mint Green Accent */
-            --accent-soft: #ECFDF5;     /* Soft Mint Background */
-            --bg-main: #F8FAF7;         /* Soft Off-White */
-            --card-bg: #FFFFFF;         /* Pure White */
-            --text-dark: #1F2937;       /* Dark Charcoal */
-            --text-muted: #6B7280;      /* Muted Slate Grey */
-            --border-light: #E5E7EB;    /* Light Neutral Border */
-            --border-green: #D1FAE5;    /* Subtle Mint Border */
-            --sidebar-bg: #0F381E;      /* Rich Dark Forest */
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-            --shadow-md: 0 4px 14px rgba(20, 83, 45, 0.07), 0 1px 3px rgba(0, 0, 0, 0.03);
-            --shadow-lg: 0 10px 25px -3px rgba(20, 83, 45, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-        }
-
-        /* Overall body & main container */
-        html, body, [class*="css"] {
+        html, body, [class*="css"], .stApp, [data-testid="stAppViewContainer"], header[data-testid="stHeader"] {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: var(--text-dark);
-            background-color: var(--bg-main);
-        }
+            color: var(--text-primary);
+            background-color: var(--bg-main) !important;
+        }}
 
-        .main .block-container {
+        .main .block-container {{
             padding-top: 1.75rem;
             padding-bottom: 3.5rem;
             max-width: 1200px;
-        }
+        }}
 
         /* -------------------------------------------------------------------------
-           2. Sidebar: Dark Forest Green Premium Sidebar
+           2. Sidebar: Forest Green SaaS Navigation
            ------------------------------------------------------------------------- */
-        [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #0D331B 0%, #14532D 60%, #0F381E 100%) !important;
-            border-right: 1px solid rgba(167, 243, 208, 0.15);
-        }
+        [data-testid="stSidebar"] {{
+            background: linear-gradient(180deg, #07130A 0%, #0F381E 60%, #07130A 100%) !important;
+            border-right: 1px solid rgba(167, 243, 208, 0.15) !important;
+        }}
 
-        [data-testid="stSidebar"] * {
+        [data-testid="stSidebar"] * {{
             color: #F3F4F6 !important;
-        }
+        }}
 
-        [data-testid="stSidebar"] hr {
+        [data-testid="stSidebar"] hr {{
             border-color: rgba(255, 255, 255, 0.12) !important;
-            margin: 1rem 0;
-        }
+            margin: 0.85rem 0;
+        }}
 
-        .sidebar-brand-container {
-            padding: 0.5rem 0.25rem 0.85rem 0.25rem;
+        .sidebar-brand-container {{
+            padding: 0.5rem 0.25rem 0.75rem 0.25rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 1.25rem;
-        }
-        .sidebar-brand-title {
+            margin-bottom: 0.85rem;
+        }}
+        .sidebar-brand-title {{
             font-size: 1.45rem;
             font-weight: 800;
             color: #FFFFFF !important;
@@ -479,24 +494,32 @@ st.markdown(
             display: flex;
             align-items: center;
             gap: 0.5rem;
-        }
-        .sidebar-brand-title span {
+        }}
+        .sidebar-brand-title span {{
             color: #A7F3D0 !important;
-        }
-        .sidebar-tagline {
+        }}
+        .sidebar-tagline {{
             font-size: 0.78rem;
             font-weight: 600;
             color: #A7F3D0 !important;
             text-transform: uppercase;
             letter-spacing: 0.08em;
             margin-top: 0.25rem;
-        }
+        }}
+
+        /* Theme Selector in Sidebar */
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] {{
+            background-color: rgba(255, 255, 255, 0.08) !important;
+            border: 1px solid rgba(167, 243, 208, 0.25) !important;
+            border-radius: 8px !important;
+            color: #FFFFFF !important;
+        }}
 
         /* Radio Navigation Menu in Sidebar */
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] {
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] {{
             gap: 0.35rem;
-        }
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label {
+        }}
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label {{
             background-color: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 8px;
@@ -504,24 +527,24 @@ st.markdown(
             cursor: pointer;
             transition: all 0.18s ease-in-out;
             margin-bottom: 0.25rem;
-        }
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:hover {
+        }}
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
             background-color: rgba(167, 243, 208, 0.15) !important;
             border-color: rgba(167, 243, 208, 0.3) !important;
             transform: translateX(3px);
-        }
+        }}
 
         /* Sidebar Motivational Quote Card */
-        .sidebar-eco-card {
+        .sidebar-eco-card {{
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(167, 243, 208, 0.2);
             border-radius: 10px;
             padding: 0.9rem;
-            margin-top: 1rem;
+            margin-top: 0.75rem;
             font-size: 0.82rem;
             line-height: 1.45;
-        }
-        .sidebar-eco-badge {
+        }}
+        .sidebar-eco-badge {{
             display: inline-block;
             background: rgba(16, 185, 129, 0.2);
             color: #A7F3D0 !important;
@@ -532,49 +555,50 @@ st.markdown(
             margin-bottom: 0.4rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-        }
+        }}
 
         /* -------------------------------------------------------------------------
            3. Core Card & Typography Components
            ------------------------------------------------------------------------- */
-        .page-header {
+        .page-header {{
             margin-bottom: 1.75rem;
-        }
-        .page-title {
-            font-size: 1.85rem;
+        }}
+        .page-title {{
+            font-size: 1.9rem;
             font-weight: 800;
-            color: var(--primary);
+            color: var(--primary) !important;
             letter-spacing: -0.025em;
             margin-bottom: 0.35rem;
-        }
-        .page-subtitle {
+        }}
+        .page-subtitle {{
             font-size: 0.98rem;
-            color: var(--text-muted);
-            line-height: 1.5;
+            color: var(--text-muted) !important;
+            line-height: 1.55;
             max-width: 820px;
-        }
+        }}
 
         /* Standard Eco Card */
-        .eco-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-light);
+        .eco-card {{
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
             border-radius: 12px;
             padding: 1.5rem;
             box-shadow: var(--shadow-sm);
             transition: all 0.22s ease-in-out;
             height: 100%;
             margin-bottom: 1rem;
-        }
-        .eco-card:hover {
+            color: var(--text-primary) !important;
+        }}
+        .eco-card:hover {{
             transform: translateY(-3px);
             box-shadow: var(--shadow-md);
-            border-color: #CBD5E1;
-        }
+            border-color: var(--secondary) !important;
+        }}
 
         /* Feature Card on Home */
-        .feature-card {
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
+        .feature-card {{
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
             border-radius: 12px;
             padding: 1.35rem;
             box-shadow: var(--shadow-sm);
@@ -583,206 +607,262 @@ st.markdown(
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-        }
-        .feature-card:hover {
+            color: var(--text-primary) !important;
+        }}
+        .feature-card:hover {{
             transform: translateY(-4px);
             box-shadow: var(--shadow-md);
-            border-color: #86EFAC;
-        }
-        .feature-icon-wrapper {
+            border-color: var(--secondary) !important;
+        }}
+        .feature-icon-wrapper {{
             width: 44px;
             height: 44px;
             border-radius: 10px;
-            background: #ECFDF5;
-            color: #15803D;
+            background: var(--accent-soft);
+            color: var(--secondary);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.35rem;
             margin-bottom: 0.9rem;
-            border: 1px solid #A7F3D0;
-        }
-        .feature-title {
-            font-size: 1.05rem;
+            border: 1px solid var(--border-green);
+        }}
+        .feature-title {{
+            font-size: 1.08rem;
             font-weight: 700;
-            color: var(--primary);
+            color: var(--primary) !important;
             margin-bottom: 0.45rem;
-        }
-        .feature-desc {
-            font-size: 0.88rem;
-            color: var(--text-muted);
-            line-height: 1.45;
+        }}
+        .feature-desc {{
+            font-size: 0.9rem;
+            color: var(--text-secondary) !important;
+            line-height: 1.5;
             margin-bottom: 1rem;
             flex-grow: 1;
-        }
-        .feature-cta {
-            font-size: 0.82rem;
+        }}
+        .feature-cta {{
+            font-size: 0.85rem;
             font-weight: 700;
-            color: var(--secondary);
+            color: var(--secondary) !important;
             display: inline-flex;
             align-items: center;
             gap: 0.3rem;
             text-decoration: none;
-        }
+        }}
 
         /* Workflow Steps */
-        .workflow-step {
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
+        .workflow-step {{
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
             border-radius: 12px;
             padding: 1.25rem 1.1rem;
             height: 100%;
             position: relative;
             box-shadow: var(--shadow-sm);
             transition: all 0.2s ease-in-out;
-        }
-        .workflow-step:hover {
-            border-color: #86EFAC;
+            color: var(--text-primary) !important;
+        }}
+        .workflow-step:hover {{
+            border-color: var(--secondary) !important;
             transform: translateY(-2px);
-        }
-        .workflow-step-badge {
+        }}
+        .workflow-step-badge {{
             font-size: 0.75rem;
             font-weight: 800;
-            background: #ECFDF5;
-            color: #15803D;
+            background: var(--accent-soft);
+            color: var(--secondary) !important;
             padding: 0.2rem 0.55rem;
             border-radius: 6px;
             display: inline-block;
             margin-bottom: 0.6rem;
-            border: 1px solid #A7F3D0;
+            border: 1px solid var(--border-green);
             letter-spacing: 0.05em;
-        }
-        .workflow-step-title {
-            font-size: 0.98rem;
+        }}
+        .workflow-step-title {{
+            font-size: 1.02rem;
             font-weight: 700;
-            color: var(--primary);
+            color: var(--primary) !important;
             margin-bottom: 0.35rem;
-        }
-        .workflow-step-desc {
-            font-size: 0.84rem;
-            color: var(--text-muted);
-            line-height: 1.45;
-        }
+        }}
+        .workflow-step-desc {{
+            font-size: 0.88rem;
+            color: var(--text-secondary) !important;
+            line-height: 1.5;
+        }}
 
         /* Metric Dashboard Cards */
-        .metric-card {
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
+        .metric-card {{
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
             border-radius: 12px;
             padding: 1.15rem 1.25rem;
             box-shadow: var(--shadow-sm);
             margin-bottom: 0.85rem;
-            border-top: 4px solid var(--secondary);
+            border-top: 4px solid var(--secondary) !important;
             transition: all 0.2s ease-in-out;
-        }
-        .metric-card:hover {
+            color: var(--text-primary) !important;
+        }}
+        .metric-card:hover {{
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
-        }
-        .metric-header {
+        }}
+        .metric-header {{
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 0.35rem;
-        }
-        .metric-label {
-            font-size: 0.76rem;
+        }}
+        .metric-label {{
+            font-size: 0.78rem;
             font-weight: 700;
-            color: var(--text-muted);
+            color: var(--text-muted) !important;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-        }
-        .metric-value {
-            font-size: 1.35rem;
+        }}
+        .metric-value {{
+            font-size: 1.45rem;
             font-weight: 800;
-            color: var(--primary);
+            color: var(--text-primary) !important;
             line-height: 1.25;
             margin-bottom: 0.35rem;
-        }
-        .metric-subtext {
-            font-size: 0.78rem;
-            color: var(--text-muted);
+        }}
+        .metric-subtext {{
+            font-size: 0.82rem;
+            color: var(--text-secondary) !important;
             font-weight: 600;
-        }
+        }}
 
         /* Project / Suggestion Cards */
-        .project-card {
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            border-left: 4px solid var(--secondary);
+        .project-card {{
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
+            border-left: 4px solid var(--secondary) !important;
             border-radius: 10px;
             padding: 1.35rem;
             margin-bottom: 1.1rem;
             box-shadow: var(--shadow-sm);
             transition: all 0.2s ease-in-out;
-        }
-        .project-card:hover {
+            color: var(--text-primary) !important;
+        }}
+        .project-card:hover {{
             box-shadow: var(--shadow-md);
-            border-left-color: var(--primary);
-        }
-        .project-title {
-            font-size: 1.12rem;
+            border-left-color: var(--primary) !important;
+        }}
+        .project-title {{
+            font-size: 1.15rem;
             font-weight: 700;
-            color: var(--primary);
+            color: var(--primary) !important;
             margin-bottom: 0.35rem;
-        }
-        .project-meta-pill {
+        }}
+        .project-meta-pill {{
             display: inline-block;
-            font-size: 0.78rem;
-            background: #F1F5F9;
-            color: #334155;
-            padding: 0.2rem 0.6rem;
+            font-size: 0.8rem;
+            background: var(--pill-bg) !important;
+            color: var(--pill-text) !important;
+            padding: 0.25rem 0.65rem;
             border-radius: 6px;
             margin-right: 0.4rem;
             margin-bottom: 0.5rem;
             font-weight: 600;
-        }
+            border: 1px solid var(--card-border) !important;
+        }}
 
         /* -------------------------------------------------------------------------
            4. Streamlit Interactive Elements Overrides
            ------------------------------------------------------------------------- */
-        .stButton > button {
-            background-color: var(--primary) !important;
+        .stButton > button {{
+            background: linear-gradient(135deg, #15803D 0%, #16A34A 100%) !important;
             color: #FFFFFF !important;
             font-weight: 700 !important;
             font-size: 0.95rem !important;
             border-radius: 8px !important;
             border: none !important;
             padding: 0.6rem 1.4rem !important;
-            box-shadow: 0 2px 4px rgba(20, 83, 45, 0.2) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
             transition: all 0.2s ease-in-out !important;
-        }
-        .stButton > button:hover {
-            background-color: var(--secondary) !important;
+        }}
+        .stButton > button:hover {{
+            background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%) !important;
             color: #FFFFFF !important;
             transform: translateY(-1px) !important;
-            box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3) !important;
-        }
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35) !important;
+        }}
 
         /* File Uploader Container */
-        [data-testid="stFileUploader"] {
-            border: 2px dashed #86EFAC !important;
+        [data-testid="stFileUploader"] {{
+            border: 2px dashed var(--secondary) !important;
             border-radius: 12px !important;
-            background-color: #F8FAF7 !important;
+            background-color: var(--card-bg) !important;
             padding: 1.25rem 1rem !important;
             transition: all 0.2s ease-in-out !important;
-        }
-        [data-testid="stFileUploader"]:hover {
-            border-color: #16A34A !important;
-            background-color: #ECFDF5 !important;
-        }
+        }}
+        [data-testid="stFileUploader"]:hover {{
+            border-color: var(--primary) !important;
+        }}
+        [data-testid="stFileUploader"] * {{
+            color: var(--text-primary) !important;
+        }}
+
+        /* Inputs & Form Controls */
+        [data-testid="stTextInput"] input {{
+            background-color: var(--input-bg) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--card-border) !important;
+            border-radius: 8px !important;
+        }}
+        [data-testid="stSelectbox"] div[data-baseweb="select"] {{
+            background-color: var(--input-bg) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--card-border) !important;
+            border-radius: 8px !important;
+        }}
+        [data-testid="stSelectbox"] div[data-baseweb="select"] * {{
+            color: var(--text-primary) !important;
+        }}
 
         /* Accordion / Expander */
-        .streamlit-expanderHeader {
+        [data-testid="stExpander"] {{
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
+            border-radius: 8px !important;
+        }}
+        .streamlit-expanderHeader {{
             font-size: 0.95rem !important;
             font-weight: 700 !important;
-            color: var(--primary) !important;
+            color: var(--text-primary) !important;
             border-radius: 8px !important;
-            background-color: #F8FAF7 !important;
-        }
+            background-color: var(--card-bg-subtle) !important;
+        }}
+
+        /* Native Metric Display */
+        [data-testid="stMetricValue"] {{
+            color: var(--text-primary) !important;
+        }}
+        [data-testid="stMetricLabel"] {{
+            color: var(--text-muted) !important;
+        }}
+
+        /* DataFrames & Tables */
+        [data-testid="stDataFrame"], [data-testid="stTable"] {{
+            background-color: var(--card-bg) !important;
+            border-radius: 8px !important;
+        }}
+
+        /* Status & Alert Containers */
+        [data-testid="stAlert"] {{
+            background-color: var(--card-bg) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--card-border) !important;
+            border-radius: 8px !important;
+        }}
+        [data-testid="stStatusWidget"] {{
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
+            color: var(--text-primary) !important;
+        }}
 
         /* Badges */
-        .api-badge {
+        .api-badge {{
             font-size: 0.75rem;
             padding: 0.2rem 0.55rem;
             border-radius: 6px;
@@ -790,23 +870,30 @@ st.markdown(
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-        }
-        .api-badge-ok {
+        }}
+        .api-badge-ok {{
             background-color: #DCFCE7;
             color: #14532D;
             border: 1px solid #86EFAC;
-        }
-        .api-badge-warn {
+        }}
+        .api-badge-warn {{
             background-color: #FEF3C7;
             color: #92400E;
             border: 1px solid #FCD34D;
-        }
+        }}
+        .saas-footer {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            padding: 0.75rem 0;
+            line-height: 1.5;
+        }}
     </style>
     """,
     unsafe_allow_html=True,
 )
-
-
 # -----------------------------------------------------------------------------
 # Navigation State & Programmatic Routing
 # -----------------------------------------------------------------------------
@@ -846,6 +933,69 @@ def navigate_to(page_name: str):
     st.session_state["pending_page"] = page_name
     st.rerun()
 
+@st.dialog("Delete Confirmation")
+def show_delete_confirmation_modal(del_target_id: int):
+    st.markdown("### 🗑️ Permanent Deletion")
+    st.write("Are you sure you want to permanently delete this analysis?")
+    st.caption(f"Analysis Record #{del_target_id} will be permanently removed from the database.")
+    c_cancel, c_delete = st.columns(2)
+    with c_cancel:
+        if st.button("Cancel", key="btn_modal_cancel_single_del", use_container_width=True):
+            st.session_state.pop("pending_delete_id", None)
+            st.rerun()
+    with c_delete:
+        if st.button("Delete", key="btn_modal_confirm_single_del", type="primary", use_container_width=True):
+            try:
+                success = delete_analysis(del_target_id)
+                if success:
+                    st.session_state["history_feedback"] = {
+                        "type": "success",
+                        "message": f"Analysis #{del_target_id} was successfully deleted.",
+                    }
+                    if st.session_state.get("history_selected_id") == del_target_id:
+                        st.session_state.pop("history_selected_id", None)
+                else:
+                    st.session_state["history_feedback"] = {
+                        "type": "error",
+                        "message": f"Could not delete Analysis #{del_target_id}. Record may not exist.",
+                    }
+            except Exception as exc:
+                st.session_state["history_feedback"] = {
+                    "type": "error",
+                    "message": f"Failed to delete Analysis #{del_target_id}: {str(exc)}",
+                }
+            st.session_state.pop("pending_delete_id", None)
+            st.rerun()
+
+
+@st.dialog("Clear All History")
+def show_clear_all_confirmation_modal():
+    st.markdown("### 🗑️ Clear Entire History")
+    st.write("Are you sure you want to permanently delete all analyses?")
+    st.caption("This will permanently remove all saved analyses, suggestions, and matched opportunities from the database.")
+    c_cancel, c_del_all = st.columns(2)
+    with c_cancel:
+        if st.button("Cancel", key="btn_modal_cancel_clear_all", use_container_width=True):
+            st.session_state.pop("confirm_clear_all", None)
+            st.rerun()
+    with c_del_all:
+        if st.button("Delete All", key="btn_modal_confirm_clear_all", type="primary", use_container_width=True):
+            try:
+                cleared_count = clear_all_analyses()
+                st.session_state["history_feedback"] = {
+                    "type": "success",
+                    "message": f"All {cleared_count} history records were permanently deleted.",
+                }
+                st.session_state.pop("history_selected_id", None)
+            except Exception as exc:
+                st.session_state["history_feedback"] = {
+                    "type": "error",
+                    "message": f"Failed to clear history: {str(exc)}",
+                }
+            st.session_state.pop("confirm_clear_all", None)
+            st.rerun()
+
+
 
 # -----------------------------------------------------------------------------
 # Left Sidebar: Dark Forest Green Dashboard Navigation & Secure Settings
@@ -863,6 +1013,7 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+    st.markdown('<div style="font-size: 0.74rem; font-weight: 700; color: #A7F3D0; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.25rem; margin-bottom: 0.25rem;">Navigation</div>', unsafe_allow_html=True)
     # Clean Radio Menu bound to session state
     current_page = st.radio(
         "Navigation",
@@ -888,7 +1039,7 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.caption("**ReUseAI Platform:** Phase 5 Eco Green Redesign  \n*Subsystem 1: Computer Vision & Material Perception*")
+    st.caption("**ReUseAI Platform:** Intelligent Waste-to-Resource Matcher  \n*Sustainable Materials Perception Engine*")
 
 
 # -----------------------------------------------------------------------------
@@ -910,16 +1061,16 @@ if current_page == "Home":
         st.markdown(
             """
             <div style="padding-top: 1rem;">
-                <div style="display: inline-block; background-color: #ECFDF5; color: #15803D; font-size: 0.8rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 20px; border: 1px solid #A7F3D0; margin-bottom: 0.9rem; text-transform: uppercase; letter-spacing: 0.06em;">
+                <div style="display: inline-block; background: var(--accent-soft); color: var(--secondary); font-size: 0.8rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 20px; border: 1px solid var(--border-green); margin-bottom: 0.9rem; text-transform: uppercase; letter-spacing: 0.06em;">
                     🌱 Intelligent Circular Economy
                 </div>
-                <h1 style="font-size: 2.75rem; font-weight: 900; color: #14532D; line-height: 1.15; margin-bottom: 0.4rem; letter-spacing: -0.03em;">
+                <h1 style="font-size: 2.75rem; font-weight: 900; color: var(--primary); line-height: 1.15; margin-bottom: 0.4rem; letter-spacing: -0.03em;">
                     ReUseAI
                 </h1>
-                <h3 style="font-size: 1.45rem; font-weight: 700; color: #16A34A; margin-bottom: 1.1rem; letter-spacing: -0.01em;">
+                <h3 style="font-size: 1.45rem; font-weight: 700; color: var(--secondary); margin-bottom: 1.1rem; letter-spacing: -0.01em;">
                     Turn Waste into Worth
                 </h3>
-                <p style="font-size: 1.05rem; color: #4B5563; line-height: 1.65; margin-bottom: 1.6rem; max-width: 540px;">
+                <p style="font-size: 1.05rem; color: var(--text-secondary); line-height: 1.65; margin-bottom: 1.6rem; max-width: 540px;">
                     Analyze any waste material and discover smart ways to reuse, upcycle, or recycle it for a sustainable future.
                     Our vision AI identifies material grades, evaluates physical conditions, and connects discarded resources with high-value secondary applications.
                 </p>
@@ -952,58 +1103,57 @@ if current_page == "Home":
         st.markdown(
             """
             <div class="feature-card">
-                <div>
-                    <div class="feature-icon-wrapper">🔬</div>
-                    <div class="feature-title">AI Waste Analysis</div>
-                    <div class="feature-desc">Upload an image and get instant material identification, resin codes, and physical diagnostics.</div>
-                </div>
-                <div class="feature-cta">Identify Material →</div>
+                <div class="feature-icon-wrapper">🔬</div>
+                <div class="feature-title">AI Waste Analysis</div>
+                <div class="feature-desc">Upload an image and get instant material identification, resin codes, and physical diagnostics.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+        if st.button("Identify Material →", key="btn_home_identify_material", use_container_width=True):
+            navigate_to("Analyze Waste")
+
     with f2:
         st.markdown(
             """
             <div class="feature-card">
-                <div>
-                    <div class="feature-icon-wrapper">💡</div>
-                    <div class="feature-title">Smart Suggestions</div>
-                    <div class="feature-desc">Discover practical reuse and upcycling ideas with step-by-step actionable fabrication instructions.</div>
-                </div>
-                <div class="feature-cta">Explore Ideas →</div>
+                <div class="feature-icon-wrapper">💡</div>
+                <div class="feature-title">Smart Suggestions</div>
+                <div class="feature-desc">Discover practical reuse and upcycling ideas with step-by-step actionable fabrication instructions.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+        if st.button("Explore Ideas →", key="btn_home_explore_ideas", use_container_width=True):
+            navigate_to("Analysis Results")
+
     with f3:
         st.markdown(
             """
             <div class="feature-card">
-                <div>
-                    <div class="feature-icon-wrapper">🤝</div>
-                    <div class="feature-title">Resource Matching</div>
-                    <div class="feature-desc">Find potential secondary users, makerspaces, and verified circular recyclers for your materials.</div>
-                </div>
-                <div class="feature-cta">Match Users →</div>
+                <div class="feature-icon-wrapper">🤝</div>
+                <div class="feature-title">Resource Matching</div>
+                <div class="feature-desc">Find potential secondary users, makerspaces, and verified circular recyclers for your materials.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+        if st.button("Match Users →", key="btn_home_match_users", use_container_width=True):
+            navigate_to("Analysis Results")
+
     with f4:
         st.markdown(
             """
             <div class="feature-card">
-                <div>
-                    <div class="feature-icon-wrapper">📈</div>
-                    <div class="feature-title">Track Your Impact</div>
-                    <div class="feature-desc">Monitor environmental impact, carbon offset potential, and landfill diversion as a future feature.</div>
-                </div>
-                <div class="feature-cta">Preview Metrics →</div>
+                <div class="feature-icon-wrapper">📈</div>
+                <div class="feature-title">Track Your Impact</div>
+                <div class="feature-desc">Monitor environmental impact, carbon offset potential, and live circular metrics from saved analyses.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+        if st.button("Preview Metrics →", key="btn_home_preview_metrics", use_container_width=True):
+            navigate_to("Impact Dashboard")
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
@@ -1198,12 +1348,12 @@ elif current_page == "Analyze Waste":
 
             st.markdown(
                 f"""
-                <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem; font-size: 0.84rem; color: #4B5563; margin-top: 0.5rem;">
-                    <strong>Original Resolution:</strong> {orig_w} × {orig_h} px &nbsp;|&nbsp;
-                    <strong>Preprocessed:</strong> {prep_w} × {prep_h} px <br>
-                    <strong>Format:</strong> {fmt} &nbsp;|&nbsp;
-                    <strong>Color Mode:</strong> {img.mode} ➔ RGB &nbsp;|&nbsp;
-                    <strong>Aspect Ratio:</strong> {meta.get('aspect_ratio', 'N/A')}
+                <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.85rem; font-size: 0.84rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    <strong style="color: var(--text-primary);">Original Resolution:</strong> {orig_w} × {orig_h} px &nbsp;|&nbsp;
+                    <strong style="color: var(--text-primary);">Preprocessed:</strong> {prep_w} × {prep_h} px <br>
+                    <strong style="color: var(--text-primary);">Format:</strong> {fmt} &nbsp;|&nbsp;
+                    <strong style="color: var(--text-primary);">Color Mode:</strong> {img.mode} ➔ RGB &nbsp;|&nbsp;
+                    <strong style="color: var(--text-primary);">Aspect Ratio:</strong> {meta.get('aspect_ratio', 'N/A')}
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1289,7 +1439,7 @@ elif current_page == "Analysis Results":
     st.markdown(
         """
         <div class="page-header">
-            <div style="display: inline-block; background-color: #ECFDF5; color: #15803D; font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.65rem; border-radius: 12px; border: 1px solid #A7F3D0; margin-bottom: 0.5rem; text-transform: uppercase;">
+            <div style="display: inline-block; background: var(--accent-soft); color: var(--secondary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.65rem; border-radius: 12px; border: 1px solid var(--border-green); margin-bottom: 0.5rem; text-transform: uppercase;">
                 Verified AI Perception
             </div>
             <div class="page-title">📊 Material Analysis Results</div>
@@ -1312,12 +1462,28 @@ elif current_page == "Analysis Results":
     result = st.session_state.get("analysis_result")
 
     if result is None:
-        st.info(
-            "ℹ️ No waste material has been analyzed yet. "
-            "Please upload an image and click **Analyze Waste** in the 'Analyze Waste' section to view results."
+        st.markdown(
+            """
+            <div class="eco-card" style="text-align: center; padding: 2.5rem 1.5rem; margin-top: 1rem;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💡</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: var(--primary); margin-bottom: 0.35rem;">No Active Waste Analysis Available</div>
+                <p style="font-size: 0.92rem; color: var(--text-secondary); max-width: 520px; margin: 0 auto 1.25rem auto;">
+                    Smart suggestions and resource matching opportunities are generated dynamically from AI-analyzed discarded items. Upload a waste image in <strong>Analyze Waste</strong> to discover practical upcycling guides and matching secondary users.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-        if st.button("← Go to Analyze Waste"):
-            navigate_to("Analyze Waste")
+        col_res1, col_res2 = st.columns(2)
+        with col_res1:
+            if st.button("📷 Upload & Analyze Waste →", key="btn_go_to_upload", use_container_width=True):
+                navigate_to("Analyze Waste")
+        with col_res2:
+            if st.button("🧪 Try Quick Plastic Bottle Sample", key="btn_load_sample_now", use_container_width=True):
+                st.session_state["uploaded_image"] = create_sample_plastic_bottle()
+                st.session_state["image_filename"] = "sample_pet_bottle.jpg"
+                st.session_state["image_validation_error"] = None
+                navigate_to("Analyze Waste")
     else:
         mat = result.material
 
@@ -1331,10 +1497,10 @@ elif current_page == "Analysis Results":
             t_reuse = timings.get("reuse_generation_seconds", 0)
             st.markdown(
                 f"""
-                <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 0.65rem 1.1rem; margin-bottom: 1.5rem; font-size: 0.84rem; color: #14532D; display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="background-color: var(--accent-soft); border: 1px solid var(--border-green); border-radius: 10px; padding: 0.65rem 1.1rem; margin-bottom: 1.5rem; font-size: 0.84rem; color: var(--primary); display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center; box-shadow: var(--shadow-sm);">
                     <span>⚡ <strong>Execution Total:</strong> {t_total}s</span>
                     <span>• <strong>Preprocessing:</strong> {t_prep}s</span>
-                    <span>• <strong>Groq Vision AI:</strong> {t_api}s</span>
+                    <span>• <strong>Vision AI:</strong> {t_api}s</span>
                     <span>• <strong>Schema Parser:</strong> {t_parse}s</span>
                     <span>• <strong>Matching Engines:</strong> {t_reuse}s</span>
                 </div>
@@ -1389,8 +1555,9 @@ elif current_page == "Analysis Results":
                 unsafe_allow_html=True,
             )
         with k4:
-            rec_badge_color = "#15803D" if mat.recyclability_score >= 70 else "#D97706"
-            rec_badge_bg = "#DCFCE7" if mat.recyclability_score >= 70 else "#FEF3C7"
+            tier_info = MaterialDetector.get_recyclability_tier(mat.recyclability_score)
+            rec_badge_bg, rec_badge_color = tier_info["badge_bg"], tier_info["badge_color"]
+
             st.markdown(
                 f"""
                 <div class="metric-card">
@@ -1398,10 +1565,13 @@ elif current_page == "Analysis Results":
                         <span class="metric-label">Recyclability Index</span>
                         <span>♻️</span>
                     </div>
-                    <div class="metric-value">{mat.recyclability_score} <span style="font-size: 0.9rem; font-weight: 600; color: #6B7280;">/ 100</span></div>
-                    <span style="background-color: {rec_badge_bg}; color: {rec_badge_color}; font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px;">
-                        {'High Circular Viability' if mat.recyclability_score >= 70 else 'Condition Restricted'}
+                    <div class="metric-value">{mat.recyclability_score} <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">/ 100</span></div>
+                    <span style="background-color: {rec_badge_bg}; color: {rec_badge_color}; font-size: 0.74rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 4px; display: inline-block;">
+                        {tier_info['label']}
                     </span>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.35; margin-top: 0.35rem;">
+                        {tier_info['summary']}
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1411,8 +1581,8 @@ elif current_page == "Analysis Results":
         if result.summary:
             st.markdown(
                 f"""
-                <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-left: 3px solid #16A34A; border-radius: 8px; padding: 0.9rem 1.1rem; margin-top: 0.5rem; margin-bottom: 1.5rem; font-size: 0.92rem; color: #374151; line-height: 1.5;">
-                    <strong>Perception Diagnostics:</strong> {result.summary}
+                <div style="background-color: var(--card-bg); border: 1px solid var(--card-border); border-left: 4px solid var(--secondary); border-radius: 8px; padding: 0.95rem 1.15rem; margin-top: 0.5rem; margin-bottom: 1.5rem; font-size: 0.92rem; color: var(--text-secondary); line-height: 1.55;">
+                    <strong style="color: var(--text-primary);">Perception Diagnostics:</strong> {result.summary}
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1429,23 +1599,30 @@ elif current_page == "Analysis Results":
                 if mat.detected_features
                 else "<li>Standard surface geometry detected</li>"
             )
+            cleanliness_exp_html = (
+                f'<div style="font-size: 0.81rem; color: var(--text-secondary); margin-top: -0.45rem; margin-bottom: 0.75rem; padding: 0.35rem 0.6rem; background: rgba(5, 150, 105, 0.06); border-radius: 5px; border-left: 3px solid var(--primary);">'
+                f'<strong>Visual Cleanliness Evidence:</strong> {mat.cleanliness_explanation}</div>'
+                if getattr(mat, "cleanliness_explanation", None)
+                else ""
+            )
             st.markdown(
                 f"""
                 <div class="eco-card" style="margin-bottom: 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.5rem;">
-                        <span style="font-size: 0.9rem; font-weight: 700; color: #14532D;">Specific Sub-grade</span>
-                        <span style="background: #F1F5F9; color: #334155; font-size: 0.8rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 6px;">{mat.sub_category}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; border-bottom: 1px solid var(--card-border); padding-bottom: 0.5rem;">
+                        <span style="font-size: 0.9rem; font-weight: 700; color: var(--primary);">Specific Sub-grade</span>
+                        <span style="background: var(--pill-bg); color: var(--pill-text); font-size: 0.8rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid var(--card-border);">{mat.sub_category}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.5rem;">
-                        <span style="font-size: 0.9rem; font-weight: 700; color: #14532D;">Confidence Rating</span>
-                        <span style="background: #DCFCE7; color: #14532D; font-size: 0.8rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 6px;">{mat.confidence_score * 100:.1f}% Match</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; border-bottom: 1px solid var(--card-border); padding-bottom: 0.5rem;">
+                        <span style="font-size: 0.9rem; font-weight: 700; color: var(--primary);">Confidence Rating</span>
+                        <span style="background: var(--accent-soft); color: var(--secondary); font-size: 0.8rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid var(--border-green);">{mat.confidence_score * 100:.1f}% Match</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.5rem;">
-                        <span style="font-size: 0.9rem; font-weight: 700; color: #14532D;">Cleanliness Level</span>
-                        <span style="background: #F8FAF7; color: #475569; font-size: 0.8rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid #E2E8F0;">{mat.cleanliness_level}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid var(--card-border); padding-bottom: 0.5rem;">
+                        <span style="font-size: 0.9rem; font-weight: 700; color: var(--primary);">Cleanliness Level</span>
+                        <span style="background: var(--pill-bg); color: var(--pill-text); font-size: 0.8rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid var(--card-border);">{mat.cleanliness_level}</span>
                     </div>
-                    <div style="font-size: 0.86rem; color: #4B5563;">
-                        <strong style="color: #1F2937;">Observed Visual Features:</strong>
+                    {cleanliness_exp_html}
+                    <div style="font-size: 0.86rem; color: var(--text-secondary);">
+                        <strong style="color: var(--text-primary);">Observed Visual Features:</strong>
                         <ul style="margin-top: 0.4rem; padding-left: 1.1rem; list-style-type: none;">
                             {features_html}
                         </ul>
@@ -1460,7 +1637,7 @@ elif current_page == "Analysis Results":
             hazards_html = (
                 "".join([f"<li style='margin-bottom: 0.25rem;'>⚠️ {h}</li>" for h in mat.hazardous_elements])
                 if mat.hazardous_elements
-                else "<li style='color: #15803D;'>✅ No immediate chemical, biological, or thermal hazards detected</li>"
+                else "<li style='color: var(--secondary);'>✅ No immediate chemical, biological, or thermal hazards detected</li>"
             )
             prep_html = (
                 "".join([f"<li style='margin-bottom: 0.25rem;'>🧼 {p}</li>" for p in result.handling_instructions])
@@ -1471,14 +1648,14 @@ elif current_page == "Analysis Results":
                 f"""
                 <div class="eco-card" style="margin-bottom: 1.25rem;">
                     <div style="margin-bottom: 0.9rem;">
-                        <strong style="color: #1F2937; font-size: 0.88rem;">Hazard Evaluation:</strong>
-                        <ul style="margin-top: 0.35rem; padding-left: 0.5rem; font-size: 0.85rem; color: #4B5563; list-style-type: none;">
+                        <strong style="color: var(--text-primary); font-size: 0.88rem;">Hazard Evaluation:</strong>
+                        <ul style="margin-top: 0.35rem; padding-left: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); list-style-type: none;">
                             {hazards_html}
                         </ul>
                     </div>
                     <div>
-                        <strong style="color: #1F2937; font-size: 0.88rem;">Recommended Preparation Protocol:</strong>
-                        <ul style="margin-top: 0.35rem; padding-left: 0.5rem; font-size: 0.85rem; color: #4B5563; list-style-type: none;">
+                        <strong style="color: var(--text-primary); font-size: 0.88rem;">Recommended Preparation Protocol:</strong>
+                        <ul style="margin-top: 0.35rem; padding-left: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); list-style-type: none;">
                             {prep_html}
                         </ul>
                     </div>
@@ -1530,7 +1707,7 @@ elif current_page == "Analysis Results":
                     <div class="project-card">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.45rem;">
                             <div class="project-title">{idx}. {sugg.title}</div>
-                            <span style="background-color: #ECFDF5; color: #15803D; font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid #A7F3D0;">
+                            <span style="background: var(--accent-soft); color: var(--secondary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid var(--border-green);">
                                 Direct Reuse
                             </span>
                         </div>
@@ -1540,8 +1717,8 @@ elif current_page == "Analysis Results":
                             <span class="project-meta-pill">⏱️ {sugg.estimated_time}</span>
                             <span class="project-meta-pill">🌱 Carbon Offset: {sugg.carbon_offset_rating}</span>
                         </div>
-                        <div style="font-size: 0.88rem; color: #4B5563; margin-top: 0.4rem; background: #F8FAF7; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #E2E8F0;">
-                            <strong>Required Tools / Materials:</strong> {tools_str}
+                        <div style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.4rem; background: var(--card-bg-subtle); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--card-border);">
+                            <strong style="color: var(--text-primary);">Required Tools / Materials:</strong> {tools_str}
                         </div>
                     </div>
                     """,
@@ -1572,7 +1749,7 @@ elif current_page == "Analysis Results":
                     <div class="project-card" style="border-left-color: #059669;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.45rem;">
                             <div class="project-title">{idx}. {sugg.title}</div>
-                            <span style="background-color: #DCFCE7; color: #14532D; font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid #86EFAC;">
+                            <span style="background: var(--accent-soft); color: var(--secondary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid var(--border-green);">
                                 Upcycling Conversion
                             </span>
                         </div>
@@ -1582,8 +1759,8 @@ elif current_page == "Analysis Results":
                             <span class="project-meta-pill">⏱️ {sugg.estimated_time}</span>
                             <span class="project-meta-pill">🌱 Carbon Offset: {sugg.carbon_offset_rating}</span>
                         </div>
-                        <div style="font-size: 0.88rem; color: #4B5563; margin-top: 0.4rem; background: #F8FAF7; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #E2E8F0;">
-                            <strong>Required Tools / Materials:</strong> {tools_str}
+                        <div style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.4rem; background: var(--card-bg-subtle); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--card-border);">
+                            <strong style="color: var(--text-primary);">Required Tools / Materials:</strong> {tools_str}
                         </div>
                     </div>
                     """,
@@ -1601,7 +1778,7 @@ elif current_page == "Analysis Results":
         st.markdown("<br><hr>", unsafe_allow_html=True)
 
         # ---------------------------------------------------------------------
-        # 4. Resource Matching Opportunities (Phase 4 Results)
+        # 4. Circular Resource Matching Opportunities
         # ---------------------------------------------------------------------
         st.markdown("### 🤝 Best Matching Reuse Opportunities")
         st.markdown(
@@ -1625,7 +1802,7 @@ elif current_page == "Analysis Results":
                     <div class="project-card" style="border-left: 5px solid {badge_color};">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
                             <div class="project-title" style="margin-bottom: 0;">{idx}. {opp.opportunity_name}</div>
-                            <span style="background-color: {badge_bg}; color: {badge_color}; padding: 0.25rem 0.75rem; border-radius: 6px; font-weight: 800; font-size: 0.88rem; border: 1px solid rgba(0,0,0,0.06);">
+                            <span style="background-color: {badge_bg}; color: {badge_color}; padding: 0.25rem 0.75rem; border-radius: 6px; font-weight: 800; font-size: 0.88rem; border: 1px solid {badge_color};">
                                 {opp.match_score:.1f}% Match
                             </span>
                         </div>
@@ -1642,11 +1819,11 @@ elif current_page == "Analysis Results":
 
                 st.markdown(
                     f"""
-                        <div style="font-size: 0.88rem; color: #1F2937; margin-top: 0.65rem; line-height: 1.55; background: #F8FAF7; padding: 0.75rem 0.9rem; border-radius: 6px; border: 1px solid #E2E8F0;">
-                            <strong>Match Rationale:</strong> {opp.reason}
+                        <div style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.65rem; line-height: 1.55; background: var(--card-bg-subtle); padding: 0.75rem 0.9rem; border-radius: 6px; border: 1px solid var(--card-border);">
+                            <strong style="color: var(--text-primary);">Match Rationale:</strong> {opp.reason}
                         </div>
-                        <div style="font-size: 0.88rem; background-color: #ECFDF5; padding: 0.75rem 0.9rem; border-radius: 6px; border: 1px solid #A7F3D0; margin-top: 0.6rem; color: #14532D;">
-                            🎯 <strong>Suggested Application:</strong> {opp.suggested_application}
+                        <div style="font-size: 0.88rem; background-color: var(--accent-soft); padding: 0.75rem 0.9rem; border-radius: 6px; border: 1px solid var(--border-green); margin-top: 0.6rem; color: var(--primary);">
+                            🎯 <strong style="color: var(--text-primary);">Suggested Application:</strong> {opp.suggested_application}
                         </div>
                     </div>
                     """,
@@ -1707,13 +1884,51 @@ elif current_page == "Analysis History":
         unsafe_allow_html=True,
     )
 
+    # Check and render any active confirmation modal popups
+    if st.session_state.get("pending_delete_id"):
+        show_delete_confirmation_modal(st.session_state["pending_delete_id"])
+
+    if st.session_state.get("confirm_clear_all"):
+        show_clear_all_confirmation_modal()
+
+    # Display action feedback notifications
+    if "history_feedback" in st.session_state:
+        feedback = st.session_state.pop("history_feedback")
+        if feedback.get("type") == "success":
+            st.success(feedback.get("message", "Operation completed successfully."))
+        else:
+            st.error(feedback.get("message", "Operation failed."))
+
     try:
         analyses = get_all_analyses(limit=50)
 
         if not analyses:
-            st.info("No saved analyses found. Analyze some waste materials to build your history!")
+            st.markdown(
+                """
+                <div class="eco-card" style="text-align: center; padding: 2.75rem 1.5rem; margin-top: 1rem;">
+                    <div style="font-size: 2.75rem; margin-bottom: 0.6rem;">📂</div>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: var(--primary); margin-bottom: 0.35rem;">
+                        No Saved Analyses Found
+                    </div>
+                    <p style="font-size: 0.92rem; color: var(--text-secondary); max-width: 520px; margin: 0 auto 1.5rem auto;">
+                        You haven't analyzed any waste materials yet, or the history has been cleared. Analyze discarded packaging and items in <strong>Analyze Waste</strong> to build your circular reuse history!
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("📷 Start New Waste Analysis →", key="btn_history_empty_cta", use_container_width=False):
+                navigate_to("Analyze Waste")
         else:
-            st.success(f"Total saved analyses retrieved: {len(analyses)}")
+            # Top Action Bar: Status & Clear All
+            col_stat, col_clear = st.columns([3, 1])
+            with col_stat:
+                st.success(f"Total saved analyses retrieved: {len(analyses)}")
+            with col_clear:
+                if st.button("🗑️ Clear All History", key="btn_trigger_clear_all", use_container_width=True):
+                    st.session_state["confirm_clear_all"] = True
+                    st.rerun()
 
             # Prepare history table
             st.markdown("### 🔎 Search & Filter Analyses")
@@ -1785,6 +2000,7 @@ elif current_page == "Analysis History":
                     "Material": item["material_type"],
                     "Category": item["primary_category"],
                     "Condition": item["physical_condition"],
+                    "Cleanliness": item.get("cleanliness_level", "Unknown"),
                     "Confidence": (
                         f'{item["confidence_score"]:.1%}'
                         if item["confidence_score"] is not None
@@ -1798,11 +2014,33 @@ elif current_page == "Analysis History":
             st.markdown("### 🗃️ Saved Analyses")
 
             if filtered_analyses:
-                st.dataframe(
-                    history_table,
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                for item in filtered_analyses:
+                    created_at = item["created_at"]
+                    date_str = created_at.strftime("%d %b %Y, %I:%M %p") if created_at else "N/A"
+                    conf_str = f"{item['confidence_score']:.1%}" if item["confidence_score"] is not None else "N/A"
+
+                    with st.container(border=True):
+                        col_card_info, col_card_acts = st.columns([4, 1.4])
+                        with col_card_info:
+                            st.markdown(f"**#{item['id']} • {item['material_type']}**")
+                            st.caption(f"📁 **Category:** {item['primary_category']} &nbsp;|&nbsp; 🔍 **Condition:** {item['physical_condition']} &nbsp;|&nbsp; 🧼 **Cleanliness:** {item.get('cleanliness_level', 'Unknown')} &nbsp;|&nbsp; 🎯 **Confidence:** {conf_str} &nbsp;|&nbsp; 📅 {date_str}")
+                        with col_card_acts:
+                            c_v, c_d = st.columns(2)
+                            with c_v:
+                                if st.button("View", key=f"btn_card_view_{item['id']}", use_container_width=True):
+                                    st.session_state["history_selected_id"] = item["id"]
+                                    st.rerun()
+                            with c_d:
+                                if st.button("🗑️", key=f"btn_card_del_{item['id']}", help=f"Delete analysis #{item['id']}", use_container_width=True):
+                                    st.session_state["pending_delete_id"] = item["id"]
+                                    st.rerun()
+
+                with st.expander("📊 View Complete Data Table"):
+                    st.dataframe(
+                        history_table,
+                        use_container_width=True,
+                        hide_index=True,
+                    )
             else:
                 st.info("No analyses match your search or selected filters.")
 
@@ -1827,7 +2065,13 @@ elif current_page == "Analysis History":
 
                     if saved_result:
                         material = saved_result.get("material", {})
-                        st.markdown(f"## ♻️ Analysis Report #{selected_history_id}")
+                        col_rep_title, col_rep_del = st.columns([4, 1.2])
+                        with col_rep_title:
+                            st.markdown(f"## ♻️ Analysis Report #{selected_history_id}")
+                        with col_rep_del:
+                            if st.button("🗑️ Delete Report", key=f"btn_rep_del_{selected_history_id}", use_container_width=True):
+                                st.session_state["pending_delete_id"] = selected_history_id
+                                st.rerun()
 
                         #Overview
                         st.markdown("### Material Overview")
@@ -1877,7 +2121,10 @@ elif current_page == "Analysis History":
 
                         with details_col1:
                             st.write("**Cleanliness Level**")
-                            st.write(material.get("cleanliness_level", "N/A"))
+                            st.write(material.get("cleanliness_level", "Unknown"))
+                            clean_exp = material.get("cleanliness_explanation") or saved_result.get("cleanliness_explanation")
+                            if clean_exp:
+                                st.caption(f"ℹ️ **Evidence:** {clean_exp}")
 
                             st.write("**Waste Type**")
                             st.write(saved_result.get("waste_type", "N/A"))
@@ -1994,13 +2241,13 @@ elif current_page == "Analysis History":
     except Exception as e:
         st.error(f"Unable to load analysis history: {e}")
 # -----------------------------------------------------------------------------
-# PAGE 5: Impact Dashboard (Phase 7 – Live PostgreSQL Analytics)
+# PAGE 5: Circular Impact Dashboard
 # -----------------------------------------------------------------------------
 elif current_page == "Impact Dashboard":
     st.markdown(
         """
         <div class="page-header">
-            <div style="display: inline-block; background-color: #ECFDF5; color: #15803D; font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.65rem; border-radius: 12px; border: 1px solid #A7F3D0; margin-bottom: 0.5rem; text-transform: uppercase;">
+            <div style="display: inline-block; background: var(--accent-soft); color: var(--secondary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.65rem; border-radius: 12px; border: 1px solid var(--border-green); margin-bottom: 0.5rem; text-transform: uppercase;">
                 Live Database Telemetry
             </div>
             <div class="page-title">🌱 Circular Impact Dashboard</div>
@@ -2025,10 +2272,10 @@ elif current_page == "Impact Dashboard":
             st.markdown(
                 """
                 <div class="eco-card" style="border-left: 4px solid #16A34A;">
-                    <div style="font-size: 1.1rem; font-weight: 700; color: #14532D; margin-bottom: 0.4rem;">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-bottom: 0.4rem;">
                         📊 Ready to Track Your Analysis Telemetry
                     </div>
-                    <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.55; margin-bottom: 0;">
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; margin-bottom: 0;">
                         Once analyses are saved to PostgreSQL, this dashboard will automatically display total items analyzed,
                         AI-assessed recyclability rates, waste category distributions, daily activity trends, condition and
                         cleanliness breakdowns, reuse pathway statistics, and top materials—with zero fabricated estimates.
@@ -2050,7 +2297,7 @@ elif current_page == "Impact Dashboard":
             # Data-integrity transparency banner
             st.markdown(
                 """
-                <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 0.65rem 1.05rem; margin-bottom: 1.35rem; font-size: 0.84rem; color: #14532D;">
+                <div style="background: var(--accent-soft); border: 1px solid var(--border-green); border-radius: 10px; padding: 0.65rem 1.05rem; margin-bottom: 1.35rem; font-size: 0.84rem; color: var(--primary);">
                     🛡️ <strong>Data Integrity Note:</strong> All metrics below are aggregated directly from stored PostgreSQL records and reflect
                     AI-assessed recyclability scores, generated reuse suggestions, and matched opportunities—not measured physical weight (kg) or verified CO₂ reductions.
                 </div>
@@ -2383,7 +2630,7 @@ elif current_page == "About":
         <div class="page-header">
             <div class="page-title">ℹ️ About ReUseAI</div>
             <div class="page-subtitle">
-                Intelligent Waste-to-Resource Matcher — Subsystem 1: Computer Vision & Material Analysis Engine
+                Intelligent Waste-to-Resource Platform — Powered by Computer Vision & Circular Resource Matching
             </div>
         </div>
         """,
@@ -2394,10 +2641,10 @@ elif current_page == "About":
     st.markdown(
         """
         <div class="eco-card" style="border-left: 4px solid #16A34A; margin-bottom: 1.75rem;">
-            <h3 style="font-size: 1.3rem; font-weight: 700; color: #14532D; margin-bottom: 0.5rem;">
+            <h3 style="font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem;">
                 🌍 Project Purpose & Sustainability Mission
             </h3>
-            <p style="font-size: 0.95rem; color: #4B5563; line-height: 1.6; margin-bottom: 0;">
+            <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 0;">
                 Traditional linear economies operate on a destructive <em>take-make-dispose</em> paradigm that discards millions of tons
                 of recyclable polymers, clean paperboard, non-ferrous metals, and silica glass into landfills daily.
                 <strong>ReUseAI</strong> redefines this dynamic by applying high-speed computer vision perception to identify discarded materials,
@@ -2414,7 +2661,7 @@ elif current_page == "About":
         st.markdown(
             """
             <div class="eco-card">
-                <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.55;">
+                <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55;">
                     Contamination and misclassification are the primary bottlenecks in modern recycling systems. When incompatible polymers (e.g. PVC mixed into PET streams) enter secondary extruders, entire batches degrade.
                     ReUseAI's vision perception evaluates specific resin codes, surface cleanliness, and mechanical integrity before recommending reuse pathways.
                 </p>
@@ -2427,7 +2674,7 @@ elif current_page == "About":
         st.markdown(
             """
             <div class="eco-card">
-                <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.55;">
+                <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55;">
                     Recycling often consumes energy through shredding, thermal re-melting, and pelletization. In contrast,
                     <strong>direct reuse</strong> and <strong>functional upcycling</strong> preserve the existing structural energy of bottles, jars, and cartons,
                     converting them into sub-irrigated planters, airtight pantry containers, or prototyping mounts with zero thermal reprocessing.
@@ -2442,10 +2689,10 @@ elif current_page == "About":
         st.markdown(
             """
             <div class="eco-card">
-                <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.55;">
+                <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55;">
                     ReUseAI directly contributes to <strong>United Nations Sustainable Development Goal 12 (Responsible Consumption and Production)</strong> by:
                 </p>
-                <ul style="font-size: 0.88rem; color: #4B5563; line-height: 1.5; padding-left: 1.2rem;">
+                <ul style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; padding-left: 1.2rem;">
                     <li>Diverting post-consumer packaging from municipal landfills.</li>
                     <li>Lowering consumer demand for virgin petroleum-based household products.</li>
                     <li>Promoting open-source STEM and makerspace circular manufacturing tools.</li>
@@ -2455,13 +2702,13 @@ elif current_page == "About":
             unsafe_allow_html=True,
         )
 
-        st.markdown("##### 🏗️ System Scope & Architecture")
+        st.markdown("##### ⚡ Platform Capabilities")
         st.markdown(
             """
             <div class="eco-card">
-                <p style="font-size: 0.9rem; color: #4B5563; line-height: 1.55;">
-                    <strong>Subsystem 1 (This Application):</strong> Image preprocessing, vision perception, recyclability diagnostics, and reuse guide generation.<br>
-                    <strong>Subsystem 2 (Partner Module):</strong> Database persistence, distributed inventory cataloging, and industrial secondary matching engine.
+                <p style="font-size: 0.92rem; color: var(--text-secondary); line-height: 1.55;">
+                    <strong>Intelligent Material Perception:</strong> High-precision vision recognition, polymer sub-typing, and surface contamination diagnostics.<br><br>
+                    <strong>Circular Resource Matching:</strong> Autonomous compatibility scoring connecting discarded feedstocks with secondary industrial makers and circular opportunities.
                 </p>
             </div>
             """,
@@ -2475,9 +2722,9 @@ elif current_page == "About":
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     """
-    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #9CA3AF; padding: 0.5rem 0;">
+    <div class="saas-footer">
         <div>ReUseAI Platform &nbsp;•&nbsp; Intelligent Waste-to-Resource Matcher</div>
-        <div>Eco Green Design System &nbsp;•&nbsp; Phase 5 Complete</div>
+        <div>Advancing UN SDG 12 &nbsp;•&nbsp; Circular Economy Solutions</div>
     </div>
     """,
     unsafe_allow_html=True,

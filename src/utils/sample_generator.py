@@ -15,7 +15,37 @@ def create_sample_plastic_bottle() -> Image.Image:
     draw.rounded_rectangle([165, 65, 235, 95], radius=6, fill=(35, 110, 185), outline=(20, 80, 140), width=2)
     # Water lines & label
     draw.rectangle([133, 250, 267, 330], fill=(225, 245, 255), outline=(140, 190, 230), width=2)
-    draw.text((160, 280), "PET #1 Water", fill=(30, 80, 130))
+    draw.text((160, 280), "PET #1 Water\nClean & Intact", fill=(30, 80, 130))
+
+    return img
+
+
+def create_sample_soiled_plastic_bottle() -> Image.Image:
+    """Generate a synthetic illustration of a heavily soiled plastic bottle with mud and dirt patches."""
+    img = create_sample_plastic_bottle()
+    draw = ImageDraw.Draw(img)
+
+    # Extensive brown mud and dirt patches across surface
+    draw.polygon([(140, 200), (190, 190), (210, 230), (180, 250), (135, 230)], fill=(120, 80, 45), outline=(90, 55, 30))
+    draw.ellipse([180, 310, 260, 380], fill=(110, 70, 35), outline=(80, 50, 25))
+    draw.polygon([(145, 360), (200, 350), (220, 410), (160, 430), (135, 390)], fill=(100, 65, 30), outline=(75, 45, 20))
+    draw.ellipse([210, 210, 265, 270], fill=(130, 85, 50), outline=(95, 60, 35))
+    draw.rectangle([135, 410, 265, 435], fill=(95, 60, 25))
+    draw.text((145, 270), "DIRTY / MUD PATCHES\nHEAVY SOIL", fill=(50, 25, 10))
+
+    return img
+
+
+def create_sample_dusty_plastic_bottle() -> Image.Image:
+    """Generate a synthetic illustration of a slightly dusty plastic bottle with minor surface residue."""
+    img = create_sample_plastic_bottle()
+    draw = ImageDraw.Draw(img)
+
+    # Minor dust layer / faint surface speckles
+    draw.rectangle([135, 180, 265, 240], fill=(210, 215, 220), outline=(180, 185, 190))
+    for x, y in [(150, 210), (180, 195), (220, 225), (200, 350), (170, 370), (230, 360), (160, 400)]:
+        draw.ellipse([x, y, x + 8, y + 8], fill=(160, 160, 150))
+    draw.text((145, 270), "MODERATELY DIRTY\nSLIGHT DUST", fill=(80, 85, 90))
 
     return img
 
@@ -76,4 +106,3 @@ def create_sample_glass_jar() -> Image.Image:
     draw.text((175, 255), "MASON JAR\nCLEAR GLASS\n100% REUSABLE", fill=(70, 60, 50))
 
     return img
-
